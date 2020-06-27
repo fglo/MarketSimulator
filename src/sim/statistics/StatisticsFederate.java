@@ -5,12 +5,17 @@ import hla.rti.jlc.RtiFactoryFactory;
 import sim.HandlersHelper;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
+import sim.objects.Checkout;
+import sim.objects.Client;
+import sim.objects.Queue;
 import sim.statistics.ExternalEvent;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class StatisticsFederate {
 
@@ -27,7 +32,13 @@ public class StatisticsFederate {
 	private int endCheckoutServiceCounter = 0;
 	private int queueOverloadCounter = 0;
 
-	
+	int sumOfShoppingTime = 0;
+
+	protected HashMap<Integer, Queue> queues = new HashMap<>();
+	protected HashMap<Integer, Client> clients = new HashMap<>();
+	protected HashMap<Integer, Checkout> checkouts = new HashMap<>();
+
+
 	public void runFederate() throws Exception{
 		rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
 
@@ -143,8 +154,6 @@ public class StatisticsFederate {
 	private void shopClose() {
 		shopCloseCounter++;
 		log("shop close: " + shopCloseCounter);
-
-
 	}
 
 	private void checkoutOpen () {
@@ -175,6 +184,18 @@ public class StatisticsFederate {
 	private void queueOverload() {
 		queueOverloadCounter++;
 		log("queue overload: " + queueOverloadCounter);
+	}
+
+	public void meanTimeOfShopping()
+	{
+		for(Map.Entry<Integer, Client> entry : clients.entrySet())
+		{
+			Client client = entry.getValue();
+			sumOfShoppingTime = sumOfShoppingTime + client.shoppingTime;
+		}
+		double meanTimeOfShopping = 0;
+		meanTimeOfShopping = sumOfShoppingTime/startCheckoutServiceCounter;
+		log("Mean time of shopping is: " + meanTimeOfShopping);
 	}
 
     private void waitForUser()
@@ -275,10 +296,12 @@ public class StatisticsFederate {
 		fedamb.clientHandle = clientHandle;
 		int idClientHandleClient = rtiamb.getAttributeHandle("idClient", clientHandle);
 		int priopityHandle = rtiamb.getAttributeHandle("priority", clientHandle);
+		int shooppingTimeHandle = rtiamb.getAttributeHandle("shoppingTime",clientHandle)
 		AttributeHandleSet clientAttributes =
 				RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
 		clientAttributes.add(idClientHandleClient);
 		clientAttributes.add(priopityHandle);
+		clientAttributes.add(shooppingTimeHandle);
 		rtiamb.subscribeObjectClassAttributes(clientHandle, clientAttributes);
 
 		int checkoutHandle = rtiamb.getObjectClassHandle("ObjectRoot.Checkout");
