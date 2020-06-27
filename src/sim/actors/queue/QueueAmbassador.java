@@ -1,14 +1,17 @@
 package sim.actors.queue;
 
-import hla.rti.EventRetractionHandle;
-import hla.rti.LogicalTime;
-import hla.rti.ReceivedInteraction;
+import hla.rti.*;
+import hla.rti.jlc.EncodingHelpers;
 import hla.rti.jlc.NullFederateAmbassador;
 import sim.Example13Federate;
 import org.portico.impl.hla13.types.DoubleTime;
 import sim.HandlersHelper;
+import sim.objects.Checkout;
+import sim.objects.Client;
+import sim.objects.Queue;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 
 public class QueueAmbassador extends NullFederateAmbassador {
@@ -30,7 +33,15 @@ public class QueueAmbassador extends NullFederateAmbassador {
     protected int endCheckoutServiceHandle     = 0;
     protected int joinQueueHandelHandle        = 0;
 
+    protected int clientHandle = 0;
+    protected int checkoutHandle = 0;
+
+    protected ArrayList<Integer> clientInstancesHandles = new ArrayList();
+    protected ArrayList<Integer> checkoutInstancesHandles = new ArrayList();
+
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
+    protected HashMap<Integer, Client> clients = new HashMap<>();
+    protected HashMap<Integer, Checkout> checkouts = new HashMap<>();
 
 
 
@@ -144,6 +155,102 @@ public class QueueAmbassador extends NullFederateAmbassador {
         }
 
         log(builder.toString());
+    }
+
+    @Override
+    public void reflectAttributeValues(int theObject,
+                                       ReflectedAttributes theAttributes, byte[] tag) {
+        reflectAttributeValues(theObject, theAttributes, tag, null, null);
+    }
+
+    @Override
+    public void reflectAttributeValues(int theObject,
+                                       ReflectedAttributes theAttributes, byte[] tag, LogicalTime theTime,
+                                       EventRetractionHandle retractionHandle) {
+        StringBuilder builder = new StringBuilder("Reflection for object:");
+
+        if(clientInstancesHandles.contains(theObject)) {
+            builder.append(" handle=" + theObject);
+            builder.append(", attributeCount=" + theAttributes.size());
+            builder.append("\n");
+
+            try {
+                int idClient = EncodingHelpers.decodeInt(theAttributes.getValue(0));
+                Client client;
+                if(clients.containsKey(idClient)) {
+                    client = clients.get(idClient);
+                    client.idClient = idClient;
+                    client.priority = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                } else {
+                    client = new Client(idClient);
+                    client.idClient = idClient;
+                    client.priority = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                }
+                clients.put(idClient, client);
+
+            } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
+                //arrayIndexOutOfBounds.printStackTrace();
+            }
+            log(builder.toString());
+        }
+
+        if(checkoutInstancesHandles.contains(theObject)) {
+            builder.append(" handle=" + theObject);
+            builder.append(", attributeCount=" + theAttributes.size());
+            builder.append("\n");
+
+            try {
+                int idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(0));
+                Checkout checkout;
+                if(checkouts.containsKey(idCheckout)) {
+                    checkout = checkouts.get(idCheckout);
+                    checkout.idCheckout = idCheckout;
+                    checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                } else {
+                    checkout = new Checkout(idCheckout);
+                    checkout.idClient = idCheckout;
+                    checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                }
+                checkouts.put(idCheckout, checkout);
+
+            } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
+                //arrayIndexOutOfBounds.printStackTrace();
+            }
+            log(builder.toString());
+        }
+    }
+
+    @Override
+    public void discoverObjectInstance(int theObject, int theObjectClass, String objectName) throws CouldNotDiscover, ObjectClassNotKnown, FederateInternalError {
+        if(theObjectClass == clientHandle) {
+            System.out.println("New client object");
+            clientInstancesHandles.add(theObject);
+        } else if (theObjectClass == checkoutHandle) {
+            System.out.println("New checkout object");
+            checkoutInstancesHandles.add(theObject);
+        }
+    }
+
+    @Override
+    public void removeObjectInstance( int theObject, byte[] userSuppliedTag )
+    {
+        removeObjectInstance(theObject, userSuppliedTag, null, null);
+    }
+
+    @Override
+    public void removeObjectInstance( int theObject,
+                                      byte[] userSuppliedTag,
+                                      LogicalTime theTime,
+                                      EventRetractionHandle retractionHandle )
+    {
+        log( "Object Removed: handle=" + theObject );
+        if(clientInstancesHandles.contains(theObject)) {
+            clients.remove(theObject);
+            clientInstancesHandles.remove(theObject);
+        } else if (checkoutInstancesHandles.contains(theObject)) {
+            checkouts.remove(theObject);
+            checkoutInstancesHandles.remove(theObject);
+        }
     }
 
 }
