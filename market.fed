@@ -16,19 +16,18 @@
       (attribute privilegeToDelete reliable timestamp)
       (class RTIprivate)
       (class Client
-        (attribute idClient reliable timestamp)
-        (attribute priority reliable timestamp)
+        (attribute idClient reliable timestamp TestSpace)
+        (attribute priority reliable timestamp TestSpace)
       )
       (class Queue
-        (attribute idQueue reliable timestamp)
-        (attribute idCheckout reliable timestamp)
-        (attribute clientsInQueue reliable timestamp)
+        (attribute idQueue reliable timestamp TestSpace)
+        (attribute idCheckout reliable timestamp TestSpace)
+        (attribute clientsInQueue reliable timestamp TestSpace)
       )
       (class Checkout
-        (attribute idCheckout reliable timestamp)
-        (attribute idClient reliable timestamp)
+        (attribute idCheckout reliable timestamp TestSpace)
+        (attribute idClient reliable timestamp TestSpace)
       )
-      (class Stats reliable timestamp)
     )
   )
 
@@ -38,7 +37,7 @@
       (class Finish reliable timestamp)
       (class ShopOpen reliable timestamp TestSpace)
       (class ShopClose reliable timestamp TestSpace)
-      (class CheckoutOpen reliable ti+mestamp TestSpace)
+      (class CheckoutOpen reliable timestamp TestSpace)
       (class CheckoutClose reliable timestamp TestSpace
         (parameter id_checkout)
       )
@@ -58,7 +57,6 @@
       )
       (class FinishCheckoutService reliable timestamp TestSpace
         (parameter idClient)
-      )
       )
     )
   )
