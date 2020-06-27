@@ -29,6 +29,7 @@ public class ClientAmbassador extends NullFederateAmbassador {
     protected int endCheckoutHandle = 0;
 
     protected int queueHandle = 0;
+    protected ArrayList<Integer> queueInstancesHandles = new ArrayList();
 
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
     protected HashMap<Integer, Queue> queues = new HashMap<>();
@@ -146,7 +147,7 @@ public class ClientAmbassador extends NullFederateAmbassador {
 			EventRetractionHandle retractionHandle) {
 		StringBuilder builder = new StringBuilder("Reflection for object:");
 
-		if(theObject == queueHandle) {
+		if(queueInstancesHandles.contains(theObject)) {
             builder.append(" handle=" + theObject);
             builder.append(", attributeCount=" + theAttributes.size());
             builder.append("\n");
@@ -175,7 +176,10 @@ public class ClientAmbassador extends NullFederateAmbassador {
 
     @Override
     public void discoverObjectInstance(int theObject, int theObjectClass, String objectName) throws CouldNotDiscover, ObjectClassNotKnown, FederateInternalError {
-        System.out.println("New object");
+        if(theObjectClass == queueHandle) {
+            System.out.println("New queue object");
+            queueInstancesHandles.add(theObject);
+        }
     }
 
     @Override
@@ -193,6 +197,7 @@ public class ClientAmbassador extends NullFederateAmbassador {
         log( "Object Removed: handle=" + theObject );
         if(queues.containsKey(theObject)) {
             queues.remove(theObject);
+            queueInstancesHandles.remove(theObject);
         }
     }
 }
