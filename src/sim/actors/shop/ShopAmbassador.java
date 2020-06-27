@@ -106,6 +106,7 @@ public class ShopAmbassador extends NullFederateAmbassador {
                                    byte[] tag,
                                    LogicalTime theTime,
                                    EventRetractionHandle eventRetractionHandle) {
+
         StringBuilder builder = new StringBuilder("interaction Received: ");
         double time = convertTime(theTime);
 
@@ -114,7 +115,6 @@ public class ShopAmbassador extends NullFederateAmbassador {
             externalEvents.add(event);
 
             builder.append("QueueOverload");
-
         }
 
         log(builder.toString(), time);
