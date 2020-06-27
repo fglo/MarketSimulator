@@ -92,11 +92,13 @@ public class ClientAmbassador extends NullFederateAmbassador {
                                    LogicalTime theTime, EventRetractionHandle eventRetractionHandle) {
         StringBuilder builder = new StringBuilder("Interaction Received: ");
 
-        if (interactionClass == HandlersHelper
-                .getInteractionHandleByName("InteractionRoot.Finish")) {
-            builder.append("Odebrano interakcję kończącą.");
-            running = false;
-        } else if (interactionClass == shopOpenHandle) {
+//        if (interactionClass == HandlersHelper
+//                .getInteractionHandleByName("InteractionRoot.Finish")) {
+//            builder.append("Odebrano interakcję kończącą.");
+//            running = false;
+//        } else
+
+        if (interactionClass == shopOpenHandle) {
             double time = convertTime(theTime);
             ExternalEvent event = new ExternalEvent(EventType.SHOP_OPEN, time);
             externalEvents.add(event);

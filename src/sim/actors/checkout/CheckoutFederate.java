@@ -67,8 +67,7 @@ public class CheckoutFederate {
         subscribe();
 
         while (fedamb.running) {
-            double timeToAdvance = fedamb.federateTime + timeStep;
-            advanceTime(timeToAdvance);
+            double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -100,6 +99,9 @@ public class CheckoutFederate {
                 }
             }
 
+            advanceTime( timeToAdvance );
+            //log( "Time Advanced to " + fedamb.federateTime );
+
             rtiamb.tick();
         }
     }
@@ -107,10 +109,12 @@ public class CheckoutFederate {
     private void openCheckout(double time) throws RTIexception {
         int idCheckout = registerCheckoutObject();
         updateHLAObject(time, checkouts.get(idCheckout));
+        log("opened checkout", time);
     }
 
     private void closeCheckout(double time, int idCheckout) throws RTIexception {
         removeHLAObject(time, idCheckout);
+        log("closed checkout", time);
     }
 
     private void closeShop(double time) {
@@ -126,6 +130,7 @@ public class CheckoutFederate {
         checkout.idClient = idClient;
         checkout.serviceTime = ThreadLocalRandom.current().nextInt(1, 3);
         updateHLAObject(time, checkout);
+        log("started checkout service", time);
     }
 
     private void endCheckoutService(double time, Checkout checkout) throws RTIexception {
@@ -282,7 +287,11 @@ public class CheckoutFederate {
     }
 
     private void log(String message) {
-        System.out.println("CheckoutFederate   : " + message);
+        System.out.println("CheckoutFederate  : " + message );
+    }
+
+    private void log(String message, double time) {
+        System.out.println("CheckoutFederate  : " + message + ", time: " + time);
     }
 
     public static void main(String[] args) {

@@ -67,8 +67,7 @@ public class ClientFederate {
         subscribe();
 
         while (fedamb.running) {
-            double timeToAdvance = fedamb.federateTime + timeStep;
-            advanceTime(timeToAdvance);
+            double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -102,6 +101,9 @@ public class ClientFederate {
                 }
             }
 
+            advanceTime( timeToAdvance );
+            //log( "Time Advanced to " + fedamb.federateTime );
+
             rtiamb.tick();
         }
 
@@ -134,18 +136,17 @@ public class ClientFederate {
     }
 
     private void endShopping(double time, int idClient) throws RTIexception {
-        log("customer has been served");
         removeHLAObject(time, idClient);
+        log("customer has been served", time);
     }
 
     private void spawnNewClient(double time) throws RTIexception {
-        log("a client enter the shop");
         int idClient = registerCheckoutObject();
         updateHLAObject(time, idClient);
+        log("a client enter the shop", time);
     }
 
     private void enterShortestQueue(double time, Client client) throws RTIexception {
-        log("client is entering shortest queue");
         int shortestQueueId = -1;
         int shortestQueueLength = 0;
         for(Map.Entry < Integer, Queue> entry : fedamb.queues.entrySet()) {
@@ -159,6 +160,7 @@ public class ClientFederate {
             }
         }
         sendJoinQueueInteraction(time, client.idClient, shortestQueueId);
+        log("client is entering the shortest queue", time);
     }
 
     private void waitForUser() {
@@ -316,9 +318,12 @@ public class ClientFederate {
         return new DoubleTimeInterval(time);
     }
 
-
     private void log(String message) {
-        System.out.println("ClientFederate  : " + message);
+        System.out.println("ClientFederate  : " + message );
+    }
+
+    private void log(String message, double time) {
+        System.out.println("ClientFederate  : " + message + ", time: " + time);
     }
 
     public static void main(String[] args) {

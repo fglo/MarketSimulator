@@ -15,7 +15,9 @@ public class HandlersHelper {
 		interactionClassMapping.put(interactionName, handle);
 	}
 	
-	public static int getInteractionHandleByName(String name) {
+	public static Integer getInteractionHandleByName(String name) {
+		if(interactionClassMapping.get(name) == null)
+			return null;
 		return interactionClassMapping.get(name).intValue();
 	}
 	

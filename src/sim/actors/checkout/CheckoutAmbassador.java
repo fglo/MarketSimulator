@@ -102,18 +102,13 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
                                    EventRetractionHandle eventRetractionHandle) {
         StringBuilder builder = new StringBuilder("Interaction Received:");
 
-        if (interactionClass == HandlersHelper
-                .getInteractionHandleByName("InteractionRoot.Finish")) {
-            builder.append("Odebrano interakcję kończącą.");
-            running = false;
-        } else if (interactionClass == checkoutOpenHandle) {
+        if (interactionClass == checkoutOpenHandle) {
             double time = convertTime(theTime);
             ExternalEvent event = new ExternalEvent(EventType.CHECKOUT_OPEN, time);
             externalEvents.add(event);
 
             builder.append("CheckoutOpen , time=" + time);
             builder.append("\n");
-
         } else if (interactionClass == checkoutCloseHandle) {
             try {
                 int idCheckout = EncodingHelpers.decodeInt(theInteraction.getValue(0));

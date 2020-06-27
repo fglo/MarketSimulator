@@ -1,10 +1,8 @@
 package sim.actors.shop;
 
-import hla.rti.ArrayIndexOutOfBounds;
 import hla.rti.EventRetractionHandle;
 import hla.rti.LogicalTime;
 import hla.rti.ReceivedInteraction;
-import hla.rti.jlc.EncodingHelpers;
 import hla.rti.jlc.NullFederateAmbassador;
 import sim.Example13Federate;
 import org.portico.impl.hla13.types.DoubleTime;
@@ -29,7 +27,7 @@ public class ShopAmbassador extends NullFederateAmbassador {
 
     protected boolean running 			 = true;
 
-    protected int QueueOverloadHandle    = 0;
+    protected int queueOverloadHandle = 0;
 
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
 
@@ -105,7 +103,7 @@ public class ShopAmbassador extends NullFederateAmbassador {
                                    LogicalTime theTime,
                                    EventRetractionHandle eventRetractionHandle) {
         StringBuilder builder = new StringBuilder("Interaction Received:");
-        if (interactionClass == QueueOverloadHandle) {
+        if (interactionClass == queueOverloadHandle) {
             double time = convertTime(theTime);
             ExternalEvent event = new ExternalEvent(EventType.QUEUE_OVERLOAD, time);
             externalEvents.add(event);
@@ -113,10 +111,6 @@ public class ShopAmbassador extends NullFederateAmbassador {
             builder.append("CheckoutOpen , time=" + time);
             builder.append("\n");
 
-        } else if(interactionClass == HandlersHelper
-                .getInteractionHandleByName("InteractionRoot.Finish")) {
-            builder.append("End of interaction has been recived.");
-            running = false;
         }
 
         log(builder.toString());
