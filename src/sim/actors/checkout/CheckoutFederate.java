@@ -125,11 +125,11 @@ public class CheckoutFederate {
     private void startCheckoutService(double time, int idCheckout, int idClient) throws RTIexception {
         Checkout checkout = checkouts.get(idCheckout);
         if(checkout == null) {
-            log("Checkout with id: " + idCheckout + " was not found.");
+            log("checkout with id: " + idCheckout + " was not found.", time);
             return;
         }
         checkout.idClient = idClient;
-        checkout.serviceTime = ThreadLocalRandom.current().nextInt(1, 2);
+        checkout.serviceTime = ThreadLocalRandom.current().nextInt(1, 3);
         updateHLAObject(time, checkout);
         log("started checkout service", time);
     }

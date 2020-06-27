@@ -110,6 +110,7 @@ public class QueueFederate {
                         Client client = fedamb.clients.get(idClient);
                         if(client != null && client.priority == 1) {
                             idClientToGo = idClient;
+                            log("found client with priority=true", timeToAdvance);
                             break;
                         }
                     }
@@ -155,7 +156,7 @@ public class QueueFederate {
     private void sendToCheckout(double time, int idQueue, int idClient, int idCheckout) throws RTIexception {
         Queue queue = queues.get(idQueue);
         if(queue == null) {
-            log("queue with id: " + idQueue + " was not found.");
+            log("queue with id: " + idQueue + " was not found.", time);
             return;
         }
         queue.removeFromQueue(idClient);

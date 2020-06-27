@@ -11,7 +11,7 @@ public class Client {
 
     public Client(int idClient) {
         this.idClient = idClient;
-        this.priority = ThreadLocalRandom.current().nextInt(0, 1);
-        this.shoppingTime = ThreadLocalRandom.current().nextInt(1, 6);
+        this.priority = ThreadLocalRandom.current().nextInt(0, 2);
+        this.shoppingTime = ThreadLocalRandom.current().nextInt(1, 7);
     }
 }
