@@ -21,7 +21,6 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
     //----------------------------------------------------------
     // these variables are accessible in the package
     protected double federateTime = 0.0;
-    protected double grantedTime = 0.0;
     protected double federateLookahead = 1.0;
 
     protected boolean isRegulating = false;
@@ -40,54 +39,52 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
 
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
 
+    public void timeRegulationEnabled( LogicalTime theFederateTime ) {
+        this.federateTime = convertTime( theFederateTime );
+        this.isRegulating = true;
+    }
 
-    private double convertTime(LogicalTime logicalTime) {
+    public void timeConstrainedEnabled( LogicalTime theFederateTime ) {
+        this.federateTime = convertTime( theFederateTime );
+        this.isConstrained = true;
+    }
+
+    public void timeAdvanceGrant( LogicalTime theTime ) {
+        this.federateTime = convertTime( theTime );
+        this.isAdvancing = false;
+    }
+
+    public void synchronizationPointRegistrationFailed( String label ) {
+        log( "Failed to register sync point: " + label );
+    }
+
+    public void synchronizationPointRegistrationSucceeded( String label ) {
+        log( "Successfully registered sync point: " + label );
+    }
+
+    public void announceSynchronizationPoint( String label, byte[] tag ) {
+        log( "Synchronization point announced: " + label );
+        if( label.equals(Example13Federate.READY_TO_RUN) )
+            this.isAnnounced = true;
+    }
+
+    public void federationSynchronized( String label ) {
+        log( "Federation Synchronized: " + label );
+        if( label.equals(Example13Federate.READY_TO_RUN) )
+            this.isReadyToRun = true;
+    }
+
+    private double convertTime( LogicalTime logicalTime ) {
         // PORTICO SPECIFIC!!
-        return ((DoubleTime) logicalTime).getTime();
+        return ((DoubleTime)logicalTime).getTime();
     }
 
     private void log(String message) {
         System.out.println("FederateAmbassador: " + message);
     }
 
-    public void synchronizationPointRegistrationFailed(String label) {
-        log("Failed to register sync point: " + label);
-    }
 
-    public void synchronizationPointRegistrationSucceeded(String label) {
-        log("Successfully registered sync point: " + label);
-    }
-
-    public void announceSynchronizationPoint(String label, byte[] tag) {
-        log("Synchronization point announced: " + label);
-        if (label.equals(Example13Federate.READY_TO_RUN))
-            this.isAnnounced = true;
-    }
-
-    public void federationSynchronized(String label) {
-        log("Federation Synchronized: " + label);
-        if (label.equals(Example13Federate.READY_TO_RUN))
-            this.isReadyToRun = true;
-    }
-
-    /**
-     * The RTI has informed us that time regulation is now enabled.
-     */
-    public void timeRegulationEnabled(LogicalTime theFederateTime) {
-        this.federateTime = convertTime(theFederateTime);
-        this.isRegulating = true;
-    }
-
-    public void timeConstrainedEnabled(LogicalTime theFederateTime) {
-        this.federateTime = convertTime(theFederateTime);
-        this.isConstrained = true;
-    }
-
-    public void timeAdvanceGrant(LogicalTime theTime) {
-        this.grantedTime = convertTime(theTime);
-        this.isAdvancing = false;
-    }
-
+    ///LOGIC
 
     public void receiveInteraction(int interactionClass,
                                    ReceivedInteraction theInteraction,
@@ -137,7 +134,7 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
             ExternalEvent event = new ExternalEvent(EventType.SHOP_CLOSE, time);
             externalEvents.add(event);
 
-            builder.append("MarketClose , time=" + time);
+            builder.append("ShopClose , time=" + time);
             builder.append("\n");
         } else if (interactionClass == sendToCheckoutHandle) {
             try {

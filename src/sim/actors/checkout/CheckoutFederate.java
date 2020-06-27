@@ -82,7 +82,7 @@ public class CheckoutFederate {
                             this.closeCheckout(timeToAdvance, externalEvent.getParameter("id_checkout"));
                             break;
                         case SHOP_CLOSE:
-                            this.closeMarket(timeToAdvance);
+                            this.closeShop(timeToAdvance);
                             break;
                         case SEND_TO_CHECKOUT:
                             this.startCheckoutService(timeToAdvance,
@@ -113,7 +113,7 @@ public class CheckoutFederate {
         removeHLAObject(time, idCheckout);
     }
 
-    private void closeMarket(double time) {
+    private void closeShop(double time) {
     }
 
     private void startCheckoutService(double time, int idCheckout, int idClient) throws RTIexception {
@@ -242,7 +242,7 @@ public class CheckoutFederate {
         fedamb.checkoutCloseHandle = checkoutCloseHandle;
         rtiamb.subscribeInteractionClass(checkoutCloseHandle);
 
-        int shopCloseHandle = rtiamb.getInteractionClassHandle("InteractionRoot.MarketClose");
+        int shopCloseHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
         fedamb.shopCloseHandle = shopCloseHandle;
         rtiamb.subscribeInteractionClass(shopCloseHandle);
 

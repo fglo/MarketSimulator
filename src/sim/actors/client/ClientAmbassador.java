@@ -12,17 +12,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class ClientAmbassador extends NullFederateAmbassador {
-
-	protected boolean running = true;
-
     protected double federateTime        = 0.0;
     protected double federateLookahead   = 1.0;
+
     protected boolean isRegulating       = false;
     protected boolean isConstrained      = false;
     protected boolean isAdvancing        = false;
 
     protected boolean isAnnounced        = false;
     protected boolean isReadyToRun       = false;
+
+    protected boolean running = true;
 
     protected int shopOpenHandle = 0;
     protected int shopCloseHandle = 0;
@@ -34,50 +34,42 @@ public class ClientAmbassador extends NullFederateAmbassador {
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
     protected HashMap<Integer, Queue> queues = new HashMap<>();
 
-    public void timeRegulationEnabled( LogicalTime theFederateTime )
-    {
+    public void timeRegulationEnabled( LogicalTime theFederateTime ) {
         this.federateTime = convertTime( theFederateTime );
         this.isRegulating = true;
     }
 
-    public void timeConstrainedEnabled( LogicalTime theFederateTime )
-    {
+    public void timeConstrainedEnabled( LogicalTime theFederateTime ) {
         this.federateTime = convertTime( theFederateTime );
         this.isConstrained = true;
     }
 
-    public void synchronizationPointRegistrationFailed( String label )
-    {
+    public void timeAdvanceGrant( LogicalTime theTime ) {
+        this.federateTime = convertTime( theTime );
+        this.isAdvancing = false;
+    }
+
+    public void synchronizationPointRegistrationFailed( String label ) {
         log( "Failed to register sync point: " + label );
     }
 
-    public void synchronizationPointRegistrationSucceeded( String label )
-    {
+    public void synchronizationPointRegistrationSucceeded( String label ) {
         log( "Successfully registered sync point: " + label );
     }
 
-    public void announceSynchronizationPoint( String label, byte[] tag )
-    {
+    public void announceSynchronizationPoint( String label, byte[] tag ) {
         log( "Synchronization point announced: " + label );
         if( label.equals(Example13Federate.READY_TO_RUN) )
             this.isAnnounced = true;
     }
 
-    public void federationSynchronized( String label )
-    {
+    public void federationSynchronized( String label ) {
         log( "Federation Synchronized: " + label );
         if( label.equals(Example13Federate.READY_TO_RUN) )
             this.isReadyToRun = true;
     }
 
-    public void timeAdvanceGrant( LogicalTime theTime )
-    {
-        this.federateTime = convertTime( theTime );
-        this.isAdvancing = false;
-    }
-
-    private double convertTime( LogicalTime logicalTime )
-    {
+    private double convertTime( LogicalTime logicalTime ) {
         // PORTICO SPECIFIC!!
         return ((DoubleTime)logicalTime).getTime();
     }
@@ -85,6 +77,9 @@ public class ClientAmbassador extends NullFederateAmbassador {
 	private void log(String message) {
 		System.out.println("StatisticsAmbassador: " + message);
 	}
+
+
+	///LOGIC
 
     public void receiveInteraction(int interactionClass,
                                    ReceivedInteraction theInteraction, byte[] tag) {
@@ -106,14 +101,14 @@ public class ClientAmbassador extends NullFederateAmbassador {
             ExternalEvent event = new ExternalEvent(EventType.SHOP_OPEN, time);
             externalEvents.add(event);
 
-            builder.append("MarketOpen , time=" + time);
+            builder.append("ShopOpen , time=" + time);
             builder.append("\n");
         } else if (interactionClass == shopCloseHandle) {
             double time = convertTime(theTime);
             ExternalEvent event = new ExternalEvent(EventType.SHOP_CLOSE, time);
             externalEvents.add(event);
 
-            builder.append("MarketClose , time=" + time);
+            builder.append("ShopClose , time=" + time);
             builder.append("\n");
         } else if (interactionClass == endCheckoutHandle) {
             try {

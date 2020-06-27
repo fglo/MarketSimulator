@@ -1,7 +1,5 @@
 package sim.utils;
 
-import com.sun.istack.internal.Nullable;
-
 import java.util.Comparator;
 import java.util.Hashtable;
 
@@ -25,8 +23,7 @@ public abstract class AExternalEvent<TEventType extends IEventType> {
         return eventType;
     }
 
-    @Nullable
-    public int getParameter(String key) {
+    public Integer getParameter(String key) {
         return parameters.get(key);
     }
 

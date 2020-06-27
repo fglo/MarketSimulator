@@ -61,9 +61,6 @@ public class ClientFederate {
             rtiamb.tick();
         }
 
-
-        enableTimePolicy();
-
         enableTimePolicy();
 
         publish();
@@ -79,10 +76,10 @@ public class ClientFederate {
                     fedamb.federateTime = externalEvent.getTime();
                     switch (externalEvent.getEventType()) {
                         case SHOP_OPEN:
-                            this.openMarket();
+                            this.openShop();
                             break;
                         case SHOP_CLOSE:
-                            this.closeMarket();
+                            this.closeShop();
                             break;
                         case END_CHECKOUT:
                             this.endShopping(timeToAdvance,
@@ -126,12 +123,12 @@ public class ClientFederate {
 //		}
     }
 
-    private void openMarket() {
+    private void openShop() {
         log("shop is open");
         shopOpen = true;
     }
 
-    private void closeMarket() {
+    private void closeShop() {
         log("shop is closing");
         shopOpen = false;
     }
@@ -251,7 +248,7 @@ public class ClientFederate {
     }
 
     private void subscribe() throws RTIexception {
-        int queueHandle = rtiamb.getInteractionClassHandle("ObjectRoot.Queue");
+        int queueHandle = rtiamb.getObjectClassHandle("ObjectRoot.Queue");
         fedamb.queueHandle = queueHandle;
         int idQueueHandle = rtiamb.getAttributeHandle("idQueue", queueHandle);
         int idCheckoutHandle = rtiamb.getAttributeHandle("idCheckout", queueHandle);
