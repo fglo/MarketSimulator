@@ -36,7 +36,6 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
     protected boolean running = true;
 
     protected int checkoutOpenHandle = 0;
-    protected int checkoutCloseHandle = 0;
     protected int shopCloseHandle = 0;
     protected int sendToCheckoutHandle = 0;
 
@@ -117,19 +116,6 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
             ExternalEvent event = new ExternalEvent(EventType.CHECKOUT_OPEN, time);
             externalEvents.add(event);
             builder.append("CheckoutOpen");
-        } else if (interactionClass == checkoutCloseHandle) {
-            try {
-                int idCheckout = EncodingHelpers.decodeInt(theInteraction.getValue(0));
-                ExternalEvent event = new ExternalEvent(EventType.CHECKOUT_CLOSE, time);
-                event.addParameter("id_checkout", idCheckout);
-                externalEvents.add(event);
-
-                builder.append("CheckoutClose");
-                builder.append(", id_checkout=").append(idCheckout);
-
-            } catch (ArrayIndexOutOfBounds ignored) {
-
-            }
         } else if (interactionClass == shopCloseHandle) {
             ExternalEvent event = new ExternalEvent(EventType.SHOP_CLOSE, time);
             externalEvents.add(event);

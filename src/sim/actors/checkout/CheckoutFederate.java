@@ -80,9 +80,6 @@ public class CheckoutFederate {
                         case CHECKOUT_OPEN:
                             this.openCheckout(timeToAdvance);
                             break;
-                        case CHECKOUT_CLOSE:
-                            this.closeCheckout(timeToAdvance, externalEvent.getParameter("id_checkout"));
-                            break;
                         case SHOP_CLOSE:
                             this.closeShop(timeToAdvance);
                             break;
@@ -277,10 +274,6 @@ public class CheckoutFederate {
         int checkoutOpenHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutOpen");
         fedamb.checkoutOpenHandle = checkoutOpenHandle;
         rtiamb.subscribeInteractionClass(checkoutOpenHandle);
-
-        int checkoutCloseHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutClose");
-        fedamb.checkoutCloseHandle = checkoutCloseHandle;
-        rtiamb.subscribeInteractionClass(checkoutCloseHandle);
 
         int shopCloseHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
         fedamb.shopCloseHandle = shopCloseHandle;

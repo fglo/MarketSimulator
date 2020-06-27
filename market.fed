@@ -42,9 +42,6 @@
       (class QueueOpen reliable timestamp TestSpace
         (parameter idCheckout)
       )
-      (class CheckoutClose reliable timestamp TestSpace
-        (parameter idCheckout)
-      )
       (class JoinQueue reliable timestamp TestSpace
         (parameter idClient)
         (parameter idQueue)
