@@ -6,6 +6,8 @@ import hla.rti.jlc.EncodingHelpers;
 import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
+import sim.actors.client.ExternalEvent;
+import sim.objects.Queue;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -23,6 +25,7 @@ public class QueueFederate {
     private final double timeStep           = 10.0;
     private HashMap<Integer, Integer> checkoutHlaHandles;
 
+    private boolean shopOpen = false;
 
     public void runFederate() throws RTIexception{
         rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
@@ -67,15 +70,42 @@ public class QueueFederate {
 
         enableTimePolicy();
 
-        publishAndSubscribe();
+        publish();
+
+        subscribe();
 
         while (fedamb.running) {
             advanceTime(randomTime());
-            sendInteraction(fedamb.federateTime + fedamb.federateLookahead);
+
+            if (fedamb.externalEvents.size() > 0) {
+                fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
+                for(ExternalEvent externalEvent : fedamb.externalEvents) {
+                    fedamb.federateTime = externalEvent.getTime();
+                    switch (externalEvent.getEventType()) {
+                        case SHOP_CLOSE:
+                            this.shopClose();
+                            break;
+                        case JOIN_QUEUE:
+                            this.joinQueue(); // here change
+                            break;
+                    }
+                }
+                fedamb.externalEvents.clear();
+            }
             rtiamb.tick();
         }
-
     }
+
+    private void shopClose() {
+        log("shop is closing");
+        shopOpen = false;
+    }
+
+    private void joinQueue(int idQueue) {
+        
+    }
+
+
 
     private void waitForUser()
     {
@@ -127,9 +157,9 @@ public class QueueFederate {
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
     }
 
-    private void publishAndSubscribe() throws RTIexception {
 
-        ////    PUBLISH
+
+    private void publish() throws RTIexception {
 
         int queueHandle = rtiamb.getObjectClassHandle("ObjectRoot.Queue");
         int idQueue = rtiamb.getAttributeHandle("idQueue", queueHandle);
@@ -147,14 +177,41 @@ public class QueueFederate {
 
         int queueOverload = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
         rtiamb.subscribeInteractionClass(queueOverload);
+    }
 
-        ////    SUBSCRIBE
+    private void subscribe() throws RTIexception {
 
+        int clientHandle = rtiamb.getObjectClassHandle("ObjectRoot.Client");
+        fedamb.clientHandle = clientHandle;
+        int idClientHandle = rtiamb.getAttributeHandle("idClientHandle", clientHandle);
+        int priopityHandle = rtiamb.getAttributeHandle("priopityHandle", clientHandle);
+        AttributeHandleSet attributes =
+                RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
+        attributes.add(idClientHandle);
+        attributes.add(priopityHandle);
+        rtiamb.subscribeObjectClassAttributes(clientHandle, attributes);
 
+        int checkoutHandle = rtiamb.getObjectClassHandle("ObjectRoot.Checkout");
+        fedamb.checkoutHandle = checkoutHandle;
+        int idCheckoutHandle = rtiamb.getAttributeHandle("idCheckoutHandle", checkoutHandle);
+        int idCheckoutClientHandle = rtiamb.getAttributeHandle("idCheckoutClientHandle", checkoutHandle);
+        AttributeHandleSet checkoutAttributes =
+                RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
+        checkoutAttributes.add(idCheckoutHandle);
+        checkoutAttributes.add(idCheckoutClientHandle);
+        rtiamb.subscribeObjectClassAttributes(checkoutHandle, checkoutAttributes);
 
+        int shopClose = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
+        rtiamb.subscribeInteractionClass(shopClose);
 
+        int startCheckoutService = rtiamb.getInteractionClassHandle("InteractionRoot.StartCheckoutService");
+        rtiamb.subscribeInteractionClass(startCheckoutService);
 
+        int endCheckoutService = rtiamb.getInteractionClassHandle("InteractionRoot.EndCheckoutService");
+        rtiamb.subscribeInteractionClass(endCheckoutService);
 
+        int joinQueue = rtiamb.getInteractionClassHandle("InteractionRoot.JoinQueue");
+        rtiamb.subscribeInteractionClass(joinQueue);
     }
 
     private void advanceTime( double timestep ) throws RTIexception

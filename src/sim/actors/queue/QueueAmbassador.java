@@ -6,6 +6,7 @@ import hla.rti.jlc.NullFederateAmbassador;
 import sim.Example13Federate;
 import org.portico.impl.hla13.types.DoubleTime;
 import sim.HandlersHelper;
+import sim.objects.Checkout;
 import sim.objects.Client;
 import sim.objects.Queue;
 
@@ -33,10 +34,14 @@ public class QueueAmbassador extends NullFederateAmbassador {
     protected int joinQueueHandelHandle        = 0;
 
     protected int clientHandle = 0;
+    protected int checkoutHandle = 0;
+
     protected ArrayList<Integer> clientInstancesHandles = new ArrayList();
+    protected ArrayList<Integer> checkoutInstancesHandles = new ArrayList();
 
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
     protected HashMap<Integer, Client> clients = new HashMap<>();
+    protected HashMap<Integer, Checkout> checkouts = new HashMap<>();
 
 
 
@@ -188,13 +193,41 @@ public class QueueAmbassador extends NullFederateAmbassador {
             }
             log(builder.toString());
         }
+
+        if(checkoutInstancesHandles.contains(theObject)) {
+            builder.append(" handle=" + theObject);
+            builder.append(", attributeCount=" + theAttributes.size());
+            builder.append("\n");
+
+            try {
+                int idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(0));
+                Checkout checkout;
+                if(checkouts.containsKey(idCheckout)) {
+                    checkout = checkouts.get(idCheckout);
+                    checkout.idCheckout = idCheckout;
+                    checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                } else {
+                    checkout = new Checkout(idCheckout);
+                    checkout.idClient = idCheckout;
+                    checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                }
+                checkouts.put(idCheckout, checkout);
+
+            } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
+                //arrayIndexOutOfBounds.printStackTrace();
+            }
+            log(builder.toString());
+        }
     }
 
     @Override
     public void discoverObjectInstance(int theObject, int theObjectClass, String objectName) throws CouldNotDiscover, ObjectClassNotKnown, FederateInternalError {
         if(theObjectClass == clientHandle) {
-            System.out.println("New queue object");
+            System.out.println("New client object");
             clientInstancesHandles.add(theObject);
+        } else if (theObjectClass == checkoutHandle) {
+            System.out.println("New checkout object");
+            checkoutInstancesHandles.add(theObject);
         }
     }
 
@@ -214,8 +247,10 @@ public class QueueAmbassador extends NullFederateAmbassador {
         if(clientInstancesHandles.contains(theObject)) {
             clients.remove(theObject);
             clientInstancesHandles.remove(theObject);
+        } else if (checkoutInstancesHandles.contains(theObject)) {
+            checkouts.remove(theObject);
+            checkoutInstancesHandles.remove(theObject);
         }
-        //else kasy
     }
 
 }
