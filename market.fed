@@ -22,7 +22,7 @@
       (class Queue
         (attribute idQueue reliable timestamp TestSpace)
         (attribute idCheckout reliable timestamp TestSpace)
-        (attribute clientsInQueue reliable timestamp TestSpace)
+        (attribute length reliable timestamp TestSpace)
       )
       (class Checkout
         (attribute idCheckout reliable timestamp TestSpace)
@@ -38,8 +38,11 @@
       (class ShopOpen reliable timestamp TestSpace)
       (class ShopClose reliable timestamp TestSpace)
       (class CheckoutOpen reliable timestamp TestSpace)
+      (class QueueOpen reliable timestamp TestSpace
+        (parameter idCheckout)
+      )
       (class CheckoutClose reliable timestamp TestSpace
-        (parameter id_checkout)
+        (parameter idCheckout)
       )
       (class JoinQueue reliable timestamp TestSpace
         (parameter idClient)
@@ -51,9 +54,6 @@
       )
       (class QueueOverload reliable timestamp TestSpace
         (parameter idQueue)
-      )
-      (class StartCheckoutService reliable timestamp TestSpace
-        (parameter idCheckout)
       )
       (class FinishCheckoutService reliable timestamp TestSpace
         (parameter idClient)

@@ -75,9 +75,12 @@ public class ClientAmbassador extends NullFederateAmbassador {
     }
 
 	private void log(String message) {
-		System.out.println("StatisticsAmbassador: " + message);
+		System.out.println("ClientAmbassador: " + message);
 	}
 
+    private void log(String message, double time) {
+        System.out.println("ClientAmbassador: " + message + ", time: " + time);
+    }
 
 	///LOGIC
 
@@ -90,44 +93,41 @@ public class ClientAmbassador extends NullFederateAmbassador {
     public void receiveInteraction(int interactionClass,
                                    ReceivedInteraction theInteraction, byte[] tag,
                                    LogicalTime theTime, EventRetractionHandle eventRetractionHandle) {
-        StringBuilder builder = new StringBuilder("Interaction Received: ");
+        StringBuilder builder = new StringBuilder("interaction Received: ");
 
-        if (interactionClass == HandlersHelper
-                .getInteractionHandleByName("InteractionRoot.Finish")) {
-            builder.append("Odebrano interakcję kończącą.");
-            running = false;
-        } else if (interactionClass == shopOpenHandle) {
-            double time = convertTime(theTime);
+        double time = convertTime(theTime);
+
+//        if (interactionClass == HandlersHelper
+//                .getInteractionHandleByName("InteractionRoot.Finish")) {
+//            builder.append("Odebrano interakcję kończącą.");
+//            running = false;
+//        } else
+
+        if (interactionClass == shopOpenHandle) {
             ExternalEvent event = new ExternalEvent(EventType.SHOP_OPEN, time);
             externalEvents.add(event);
 
-            builder.append("ShopOpen , time=" + time);
-            builder.append("\n");
+            builder.append("ShopOpen");
         } else if (interactionClass == shopCloseHandle) {
-            double time = convertTime(theTime);
             ExternalEvent event = new ExternalEvent(EventType.SHOP_CLOSE, time);
             externalEvents.add(event);
 
-            builder.append("ShopClose , time=" + time);
-            builder.append("\n");
+            builder.append("ShopClose");
         } else if (interactionClass == endCheckoutHandle) {
             try {
                 int idClient = EncodingHelpers.decodeInt(theInteraction.getValue(0));
-                double time = convertTime(theTime);
                 ExternalEvent event = new ExternalEvent(EventType.END_CHECKOUT, time);
                 event.addParameter("id_client", idClient);
                 externalEvents.add(event);
 
-                builder.append("EndCheckoutService , time=" + time);
-                builder.append(" id_client=").append(idClient);
-                builder.append("\n");
-
+                builder.append("EndCheckoutService");
+                builder.append(", id_client=").append(idClient);
             } catch (ArrayIndexOutOfBounds ignored) {
 
             }
         }
 
-        log(builder.toString());
+        log(builder.toString(), time);
     }
 
     @Override
@@ -140,12 +140,12 @@ public class ClientAmbassador extends NullFederateAmbassador {
 	public void reflectAttributeValues(int theObject,
 			ReflectedAttributes theAttributes, byte[] tag, LogicalTime theTime,
 			EventRetractionHandle retractionHandle) {
-		StringBuilder builder = new StringBuilder("Reflection for object:");
+		StringBuilder builder = new StringBuilder("reflection for object: ");
+        double time = convertTime(theTime);
 
 		if(queueInstancesHandles.contains(theObject)) {
-            builder.append(" handle=" + theObject);
+            builder.append("handle=" + theObject);
             builder.append(", attributeCount=" + theAttributes.size());
-            builder.append("\n");
 
             try {
                 int idQueue = EncodingHelpers.decodeInt(theAttributes.getValue(0));
@@ -154,7 +154,7 @@ public class ClientAmbassador extends NullFederateAmbassador {
                     queue = queues.get(idQueue);
                     queue.idQueue = idQueue;
                     queue.idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(1));
-                    queue.clientsInQueue = EncodingHelpers.decodeInt(theAttributes.getValue(2));
+                    queue.length = EncodingHelpers.decodeInt(theAttributes.getValue(2));
                 } else {
                     queue = new Queue(idQueue,
                             theAttributes.getAttributeHandle(1),
@@ -165,14 +165,14 @@ public class ClientAmbassador extends NullFederateAmbassador {
             } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
                 //arrayIndexOutOfBounds.printStackTrace();
             }
-            log(builder.toString());
+            log(builder.toString(), time);
         }
 	}
 
     @Override
     public void discoverObjectInstance(int theObject, int theObjectClass, String objectName) throws CouldNotDiscover, ObjectClassNotKnown, FederateInternalError {
         if(theObjectClass == queueHandle) {
-            System.out.println("New queue object");
+            log("new queue object");
             queueInstancesHandles.add(theObject);
         }
     }
@@ -189,10 +189,11 @@ public class ClientAmbassador extends NullFederateAmbassador {
                                       LogicalTime theTime,
                                       EventRetractionHandle retractionHandle )
     {
-        log( "Object Removed: handle=" + theObject );
+        double time = convertTime(theTime);
         if(queues.containsKey(theObject)) {
             queues.remove(theObject);
-            queueInstancesHandles.remove(theObject);
+            queueInstancesHandles.remove((Integer)theObject);
+            log( "removed queue object, handle=" + theObject, time);
         }
     }
 }

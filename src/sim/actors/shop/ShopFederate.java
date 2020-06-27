@@ -1,7 +1,6 @@
 package sim.actors.shop;
 
 import hla.rti.*;
-import hla.rti.jlc.EncodingHelpers;
 import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
@@ -12,6 +11,7 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Created by Michal on 2016-04-27.
@@ -75,9 +75,8 @@ public class ShopFederate {
         publishAndSubscribe();
 
         while (fedamb.running) {
-            double timeToAdvance = fedamb.federateTime + timeStep;
+            double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
             timeStepCounter ++;
-            advanceTime(randomTime());
 
             if(fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -94,51 +93,47 @@ public class ShopFederate {
 
             if(shopStatus == false)
             {
-                shopOpen(timeToAdvance);
+                openShop(timeToAdvance);
+                for (int i = 0; i < 3; i++) {
+                    openCheckout(timeToAdvance);
+                }
             }
+//            if(timeStepCounter == 100)
+//            {
+//                shopClose(timeToAdvance);
+//            }
 
-            if(timeStepCounter > 15)
-            {
-                shopClose(timeToAdvance);
-            }
+            advanceTime( timeToAdvance );
+            //log( "Time Advanced to " + fedamb.federateTime );
 
             rtiamb.tick();
         }
 
     }
 
-    private void shopOpen(double time) throws RTIexception {
+    private void openShop(double time) throws RTIexception {
         shopStatus = true;
-        sendInteraction_shopOpen(fedamb.federateTime + fedamb.federateLookahead);
-
+        sendOpenShopInteraction(time);
     }
 
-    private void shopClose(double time) throws RTIexception {
-
+    private void closeShop(double time) throws RTIexception {
         shopStatus = false;
-        checkoutClose(time);
-        sendInteraction_shopClose(fedamb.federateTime + fedamb.federateLookahead);
-
+        closeCheckout(time);
+        sendCloseShopInteraction(time);
     }
 
-    private void checkoutOpen(double time) throws RTIexception {
+    private void openCheckout(double time) throws RTIexception {
         checkoutCounter += 1;
-        sendInteraction_checkoutOpen(fedamb.federateTime + fedamb.federateLookahead);
+        sendOpenCheckoutInteraction(time);
     }
 
-    private void checkoutClose(double time) throws RTIexception {
-        sendInteraction_shopClose(fedamb.federateTime + fedamb.federateLookahead);
+    private void closeCheckout(double time) throws RTIexception {
+        sendCloseShopInteraction(time);
     }
 
     private void queueOverload(double time) throws RTIexception {
-        if(checkoutCounter < 4){
-            checkoutOpen(time);
-        } else {
-            log("All checkout's are already open");
-        }
+        openCheckout(time);
     }
-
-
 
     private void waitForUser()
     {
@@ -175,66 +170,51 @@ public class ShopFederate {
         }
     }
 
-    private void sendInteraction_shopOpen(double timeStep) throws RTIexception {
+    private void sendOpenShopInteraction(double timeStep) throws RTIexception {
+        LogicalTime time = convertTime( timeStep );
+        log("shop opens", timeStep);
+
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
 
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopOpen");
-
-        LogicalTime time = convertTime( timeStep );
-        log("ShopOpen_error: " + time);
-        // TSO
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
-//        // RO
-//        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes() );
     }
 
-    private void sendInteraction_shopClose(double timeStep) throws RTIexception {
+    private void sendCloseShopInteraction(double timeStep) throws RTIexception {
+        LogicalTime time = convertTime( timeStep );
+        log("shop closes", timeStep);
+
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
 
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
-
-        LogicalTime time = convertTime( timeStep );
-        log("shopClose_error: " + time);
-        // TSO
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
-//        // RO
-//        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes() );
     }
 
-    private void sendInteraction_checkoutOpen(double timeStep) throws RTIexception {
+    private void sendOpenCheckoutInteraction(double timeStep) throws RTIexception {
+        LogicalTime time = convertTime( timeStep );
+        log("checkout opens", timeStep);
+
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
 
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutOpen");
-
-        LogicalTime time = convertTime( timeStep );
-        log("CheckoutOpen_error: " + time);
-        // TSO
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
-//        // RO
-//        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes() );
     }
 
-    private void sendInteraction_checkoutClose(double timeStep) throws RTIexception {
+    private void sendCloseCheckoutInteraction(double timeStep) throws RTIexception {
+        LogicalTime time = convertTime( timeStep );
+        log("checkout closes", timeStep);
+
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
 
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutClose");
-
-        LogicalTime time = convertTime( timeStep );
-        log("CheckoutClose_error: " + time);
-        // TSO
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
-//        // RO
-//        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes() );
     }
 
     private void publishAndSubscribe() throws RTIexception {
-        int addProductHandle = rtiamb.getInteractionClassHandle( "InteractionRoot.GetProduct" );
-        rtiamb.publishInteractionClass(addProductHandle);
-
         ////    PUBLISH
         int ShopOpen = rtiamb.getInteractionClassHandle("InteractionRoot.ShopOpen");
         rtiamb.publishInteractionClass(ShopOpen);
@@ -249,15 +229,12 @@ public class ShopFederate {
         rtiamb.publishInteractionClass(CheckoutClose);
 
         ////    SUBSCRIBE
-
         int queueOverloadHanle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
-        fedamb.QueueOverloadHandle = queueOverloadHanle;
+        fedamb.queueOverloadHandle = queueOverloadHanle;
         rtiamb.subscribeInteractionClass(queueOverloadHanle);
-
     }
 
-    private void advanceTime( double timestep ) throws RTIexception
-    {
+    private void advanceTime( double timestep ) throws RTIexception {
         log("requesting time advance for: " + timestep);
         // request the advance
         fedamb.isAdvancing = true;
@@ -289,9 +266,12 @@ public class ShopFederate {
         return new DoubleTimeInterval( time );
     }
 
-    private void log( String message )
-    {
-        System.out.println( "ShopFederate   : " + message );
+    private void log(String message) {
+        System.out.println("ShopFederate  : " + message );
+    }
+
+    private void log(String message, double time) {
+        System.out.println("ShopFederate  : " + message + ", time: " + time);
     }
 
     public static void main(String[] args) {

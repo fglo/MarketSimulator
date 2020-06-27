@@ -1,10 +1,8 @@
 package sim.actors.shop;
 
-import hla.rti.ArrayIndexOutOfBounds;
 import hla.rti.EventRetractionHandle;
 import hla.rti.LogicalTime;
 import hla.rti.ReceivedInteraction;
-import hla.rti.jlc.EncodingHelpers;
 import hla.rti.jlc.NullFederateAmbassador;
 import sim.Example13Federate;
 import org.portico.impl.hla13.types.DoubleTime;
@@ -29,7 +27,7 @@ public class ShopAmbassador extends NullFederateAmbassador {
 
     protected boolean running 			 = true;
 
-    protected int QueueOverloadHandle    = 0;
+    protected int queueOverloadHandle = 0;
 
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
 
@@ -42,7 +40,11 @@ public class ShopAmbassador extends NullFederateAmbassador {
 
     private void log( String message )
     {
-        System.out.println( "FederateAmbassador: " + message );
+        System.out.println( "ShopAmbassador: " + message );
+    }
+
+    private void log(String message, double time) {
+        System.out.println("ShopAmbassador: " + message + ", time: " + time);
     }
 
     public void synchronizationPointRegistrationFailed( String label )
@@ -104,23 +106,18 @@ public class ShopAmbassador extends NullFederateAmbassador {
                                    byte[] tag,
                                    LogicalTime theTime,
                                    EventRetractionHandle eventRetractionHandle) {
-        StringBuilder builder = new StringBuilder("Interaction Received:");
 
-        if (interactionClass == QueueOverloadHandle) {
-            double time = convertTime(theTime);
+        StringBuilder builder = new StringBuilder("interaction Received: ");
+        double time = convertTime(theTime);
+
+        if (interactionClass == queueOverloadHandle) {
             ExternalEvent event = new ExternalEvent(EventType.QUEUE_OVERLOAD, time);
             externalEvents.add(event);
 
-            builder.append("Queue Overload , time=" + time);
-            builder.append("\n");
-
-        } else if(interactionClass == HandlersHelper
-                .getInteractionHandleByName("InteractionRoot.Finish")) {
-            builder.append("End of interaction has been recived.");
-            running = false;
+            builder.append("QueueOverload");
         }
 
-        log(builder.toString());
+        log(builder.toString(), time);
     }
 
 }

@@ -67,8 +67,7 @@ public class ClientFederate {
         subscribe();
 
         while (fedamb.running) {
-            double timeToAdvance = fedamb.federateTime + timeStep;
-            advanceTime(timeToAdvance);
+            double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -91,16 +90,20 @@ public class ClientFederate {
             }
 
             if (shopOpen) {
-                for (int i = 0; i < ThreadLocalRandom.current().nextInt(0, 3); i++) {
+                if(ThreadLocalRandom.current().nextInt(0, 100) < 10) {
                     spawnNewClient(timeToAdvance);
                 }
             }
 
             for (Map.Entry<Integer, Client> entry : clients.entrySet()) {
-                if (--entry.getValue().shoppingTime == 0) {
-                    enterShortestQueue(timeToAdvance, entry.getValue());
+                Client client = entry.getValue();
+                if (!client.inQueue && --client.shoppingTime <= 0 && !fedamb.queues.isEmpty()) {
+                    enterShortestQueue(timeToAdvance, client);
                 }
             }
+
+            advanceTime( timeToAdvance );
+            //log( "Time Advanced to " + fedamb.federateTime );
 
             rtiamb.tick();
         }
@@ -134,31 +137,34 @@ public class ClientFederate {
     }
 
     private void endShopping(double time, int idClient) throws RTIexception {
-        log("customer has been served");
         removeHLAObject(time, idClient);
+        log("client [" + idClient + "] exited shop", time);
     }
 
     private void spawnNewClient(double time) throws RTIexception {
-        log("a client enter the shop");
         int idClient = registerCheckoutObject();
-        updateHLAObject(time, idClient);
+        Client client = clients.get(idClient);
+        updateHLAObject(time, client);
+        log("a client [" + idClient + "] enter the shop", time);
     }
 
     private void enterShortestQueue(double time, Client client) throws RTIexception {
-        log("client is entering shortest queue");
         int shortestQueueId = -1;
         int shortestQueueLength = 0;
         for(Map.Entry < Integer, Queue> entry : fedamb.queues.entrySet()) {
             Queue queue = entry.getValue();
-            if(queue.clientsInQueue == 0) {
+            if(queue.clientsInQueue.isEmpty()) {
                 shortestQueueId = queue.idQueue;
                 break;
-            } else if (shortestQueueLength == 0 || shortestQueueLength > queue.clientsInQueue) {
+            } else if (shortestQueueLength == 0 || shortestQueueLength > queue.length) {
                 shortestQueueId = queue.idQueue;
-                shortestQueueLength = queue.clientsInQueue;
+                shortestQueueLength = queue.length;
             }
         }
+        client.inQueue = true;
+        updateHLAObject(time, client);
         sendJoinQueueInteraction(time, client.idClient, shortestQueueId);
+        log("client [" + client.idClient + "] is entering the shortest queue", time);
     }
 
     private void waitForUser() {
@@ -179,11 +185,10 @@ public class ClientFederate {
         return idClient;
     }
 
-    private void updateHLAObject(double time, int idClient) throws RTIexception {
+    private void updateHLAObject(double time, Client client) throws RTIexception {
         SuppliedAttributes attributes =
                 RtiFactoryFactory.getRtiFactory().createSuppliedAttributes();
 
-        Client client = clients.get(idClient);
         int classHandle = rtiamb.getObjectClass(client.idClient);
 
         int idClientHandle = rtiamb.getAttributeHandle("idClient", classHandle);
@@ -196,13 +201,13 @@ public class ClientFederate {
 
         LogicalTime logicalTime = convertTime(time);
         rtiamb.updateAttributeValues(client.idClient, attributes, "actualize checkout".getBytes(), logicalTime);
-        clients.put(idClient, client);
+        clients.put(client.idClient, client);
     }
 
     private void removeHLAObject(double time, int idClient) throws RTIexception {
         LogicalTime logicalTime = convertTime(time);
-        rtiamb.deleteObjectInstance(idClient, "remove client".getBytes(), logicalTime);
         clients.remove(idClient);
+        rtiamb.deleteObjectInstance(idClient, "remove client".getBytes(), logicalTime);
     }
 
     private void sendJoinQueueInteraction(double timeStep, int idClient, int idQueue) throws RTIexception {
@@ -216,8 +221,8 @@ public class ClientFederate {
         parameters.add(idClientHandle, byteIdClient);
 
         int idQueueHandle = rtiamb.getParameterHandle( "idQueue", interactionHandle );
-        byte[] byteIdQueue = EncodingHelpers.encodeInt(idClient);
-        parameters.add(idClientHandle, byteIdQueue);
+        byte[] byteIdQueue = EncodingHelpers.encodeInt(idQueue);
+        parameters.add(idQueueHandle, byteIdQueue);
 
         LogicalTime time = convertTime( timeStep );
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
@@ -252,12 +257,12 @@ public class ClientFederate {
         fedamb.queueHandle = queueHandle;
         int idQueueHandle = rtiamb.getAttributeHandle("idQueue", queueHandle);
         int idCheckoutHandle = rtiamb.getAttributeHandle("idCheckout", queueHandle);
-        int clientsInQueueHandle = rtiamb.getAttributeHandle("clientsInQueue", queueHandle);
+        int lenghtHandle = rtiamb.getAttributeHandle("length", queueHandle);
         AttributeHandleSet attributes =
                 RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
         attributes.add(idQueueHandle);
         attributes.add(idCheckoutHandle);
-        attributes.add(clientsInQueueHandle);
+        attributes.add(lenghtHandle);
         rtiamb.subscribeObjectClassAttributes(queueHandle, attributes);
 
         int shopOpenHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopOpen");
@@ -316,9 +321,12 @@ public class ClientFederate {
         return new DoubleTimeInterval(time);
     }
 
-
     private void log(String message) {
-        System.out.println("ClientFederate  : " + message);
+        System.out.println("ClientFederate  : " + message );
+    }
+
+    private void log(String message, double time) {
+        System.out.println("ClientFederate  : " + message + ", time: " + time);
     }
 
     public static void main(String[] args) {

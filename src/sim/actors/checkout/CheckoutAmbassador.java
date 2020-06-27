@@ -80,7 +80,11 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
     }
 
     private void log(String message) {
-        System.out.println("FederateAmbassador: " + message);
+        System.out.println("CheckoutAmbassador: " + message);
+    }
+
+    private void log(String message, double time) {
+        System.out.println("CheckoutAmbassador: " + message + ", time: " + time);
     }
 
 
@@ -100,63 +104,49 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
                                    byte[] tag,
                                    LogicalTime theTime,
                                    EventRetractionHandle eventRetractionHandle) {
-        StringBuilder builder = new StringBuilder("Interaction Received:");
+        StringBuilder builder = new StringBuilder("interaction Received: ");
 
-        if (interactionClass == HandlersHelper
-                .getInteractionHandleByName("InteractionRoot.Finish")) {
-            builder.append("Odebrano interakcję kończącą.");
-            running = false;
-        } else if (interactionClass == checkoutOpenHandle) {
-            double time = convertTime(theTime);
+        double time = convertTime(theTime);
+        if (interactionClass == checkoutOpenHandle) {
             ExternalEvent event = new ExternalEvent(EventType.CHECKOUT_OPEN, time);
             externalEvents.add(event);
-
-            builder.append("CheckoutOpen , time=" + time);
-            builder.append("\n");
-
+            builder.append("CheckoutOpen");
         } else if (interactionClass == checkoutCloseHandle) {
             try {
                 int idCheckout = EncodingHelpers.decodeInt(theInteraction.getValue(0));
-                double time = convertTime(theTime);
                 ExternalEvent event = new ExternalEvent(EventType.CHECKOUT_CLOSE, time);
                 event.addParameter("id_checkout", idCheckout);
                 externalEvents.add(event);
 
-                builder.append("CheckoutClose , time=" + time);
-                builder.append(" id_checkout=").append(idCheckout);
-                builder.append("\n");
+                builder.append("CheckoutClose");
+                builder.append(", id_checkout=").append(idCheckout);
 
             } catch (ArrayIndexOutOfBounds ignored) {
 
             }
         } else if (interactionClass == shopCloseHandle) {
-            double time = convertTime(theTime);
             ExternalEvent event = new ExternalEvent(EventType.SHOP_CLOSE, time);
             externalEvents.add(event);
 
-            builder.append("ShopClose , time=" + time);
-            builder.append("\n");
+            builder.append("ShopClose");
         } else if (interactionClass == sendToCheckoutHandle) {
             try {
                 int idClient = EncodingHelpers.decodeInt(theInteraction.getValue(0));
                 int idCheckout = EncodingHelpers.decodeInt(theInteraction.getValue(1));
-                double time = convertTime(theTime);
                 ExternalEvent event = new ExternalEvent(EventType.SEND_TO_CHECKOUT, time);
                 event.addParameter("id_client", idClient);
                 event.addParameter("id_checkout", idCheckout);
                 externalEvents.add(event);
 
-                builder.append("SendToCheckout , time=" + time);
-                builder.append(" id_client=").append(idClient);
-                builder.append(" id_checkout=").append(idCheckout);
-                builder.append("\n");
+                builder.append("SendToCheckout");
+                builder.append(", id_client=").append(idClient);
+                builder.append(", id_checkout=").append(idCheckout);
 
             } catch (ArrayIndexOutOfBounds ignored) {
 
             }
         }
-
-        log(builder.toString());
+        log(builder.toString(), time);
     }
 
 }

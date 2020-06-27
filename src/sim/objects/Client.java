@@ -7,10 +7,11 @@ public class Client {
     public int priority;
 
     public int shoppingTime;
+    public boolean inQueue = false;
 
     public Client(int idClient) {
         this.idClient = idClient;
-        this.priority = ThreadLocalRandom.current().nextInt(0, 1);
-        this.shoppingTime = ThreadLocalRandom.current().nextInt(0, 5);
+        this.priority = ThreadLocalRandom.current().nextInt(0, 2);
+        this.shoppingTime = ThreadLocalRandom.current().nextInt(1, 7);
     }
 }

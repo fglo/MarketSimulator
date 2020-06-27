@@ -6,7 +6,8 @@ import hla.rti.jlc.EncodingHelpers;
 import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
-import sim.actors.client.ExternalEvent;
+import sim.objects.Checkout;
+import sim.objects.Client;
 import sim.objects.Queue;
 
 import java.io.BufferedReader;
@@ -14,6 +15,7 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 public class QueueFederate {
@@ -23,7 +25,7 @@ public class QueueFederate {
     private RTIambassador rtiamb;
     private QueueAmbassador fedamb;
     private final double timeStep           = 10.0;
-    private HashMap<Integer, Integer> checkoutHlaHandles;
+    private HashMap<Integer, Queue> queues = new HashMap<>();
 
     private boolean shopOpen = false;
 
@@ -75,7 +77,7 @@ public class QueueFederate {
         subscribe();
 
         while (fedamb.running) {
-            advanceTime(randomTime());
+            double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -85,13 +87,40 @@ public class QueueFederate {
                         case SHOP_CLOSE:
                             this.shopClose();
                             break;
+                        case OPEN_QUEUE:
+                            this.openQueue(timeToAdvance,
+                                    externalEvent.getParameter("id_checkout"));
+                            break;
                         case JOIN_QUEUE:
-                            this.joinQueue(); // here change
+                            this.joinQueue(timeToAdvance,
+                                    externalEvent.getParameter("id_client"),
+                                    externalEvent.getParameter("id_queue"));
                             break;
                     }
                 }
                 fedamb.externalEvents.clear();
             }
+
+            for (Map.Entry<Integer, Queue> entry : queues.entrySet()) {
+                Queue queue = entry.getValue();
+                Checkout checkout = fedamb.checkouts.get(queue.idCheckout);
+                if(checkout != null && checkout.idClient == -1 && !queue.clientsInQueue.isEmpty()) {
+                    int idClientToGo = queue.clientsInQueue.get(0);
+                    for (int idClient : queue.clientsInQueue) {
+                        Client client = fedamb.clients.get(idClient);
+                        if(client != null && client.priority == 1) {
+                            idClientToGo = idClient;
+                            log("found client with priority=true", timeToAdvance);
+                            break;
+                        }
+                    }
+                    sendToCheckout(timeToAdvance, queue.idQueue, idClientToGo, queue.idCheckout);
+                }
+            }
+
+            advanceTime( timeToAdvance );
+            //log( "Time Advanced to " + fedamb.federateTime );
+
             rtiamb.tick();
         }
     }
@@ -101,11 +130,40 @@ public class QueueFederate {
         shopOpen = false;
     }
 
-    private void joinQueue(int idQueue) {
-
+    private void openQueue(double time, int idCheckout) throws RTIexception {
+        int idQueue = registerQueueObject(idCheckout);
+        Queue queue = queues.get(idQueue);
+        updateHLAObject(time, queue);
+        log("open queue", time);
     }
 
+    private void joinQueue(double time, int idClient, int idQueue) throws RTIexception {
+        Queue queue = queues.get(idQueue);
+        if(queue == null) {
+            log("queue with id: " + idQueue + " was not found.");
+            return;
+        }
+        queue.addToQueue(idClient);
+        updateHLAObject(time, queue);
+        log("join queue", time);
 
+        if(queue.length > 5) {
+            sendQueueOverloadInteraction(time, idQueue);
+            log( "queue is overloaded", time);
+        }
+    }
+
+    private void sendToCheckout(double time, int idQueue, int idClient, int idCheckout) throws RTIexception {
+        Queue queue = queues.get(idQueue);
+        if(queue == null) {
+            log("queue with id: " + idQueue + " was not found.", time);
+            return;
+        }
+        queue.removeFromQueue(idClient);
+        sendSendToCheckoutInteraction(time, idClient, idCheckout);
+        updateHLAObject(time, queue);
+        log("send to checkout", time);
+    }
 
     private void waitForUser()
     {
@@ -142,76 +200,128 @@ public class QueueFederate {
         }
     }
 
-    private void sendInteraction(double timeStep) throws RTIexception {
+    private int registerQueueObject(int idCheckout) throws RTIexception {
+        int classHandle = rtiamb.getObjectClassHandle("ObjectRoot.Queue");
+        int idQueue = rtiamb.registerObjectInstance(classHandle);
+        queues.put(idQueue, new Queue(idQueue, idCheckout));
+        return idQueue;
+    }
+
+    private void updateHLAObject(double time, Queue queue) throws RTIexception {
+        SuppliedAttributes attributes =
+                RtiFactoryFactory.getRtiFactory().createSuppliedAttributes();
+        int classHandle = rtiamb.getObjectClass(queue.idQueue);
+
+        int idClientHandle = rtiamb.getAttributeHandle("idQueue", classHandle);
+        byte[] byteIdClient = EncodingHelpers.encodeInt(queue.idQueue);
+        attributes.add(idClientHandle, byteIdClient);
+
+        int idCheckoutHandle = rtiamb.getAttributeHandle("idCheckout", classHandle);
+        byte[] byteIdCheckoutHandle = EncodingHelpers.encodeInt(queue.idCheckout);
+        attributes.add(idCheckoutHandle, byteIdCheckoutHandle);
+
+        int lengthHandle = rtiamb.getAttributeHandle("length", classHandle);
+        byte[] byteLengthHandle = EncodingHelpers.encodeInt(queue.idCheckout);
+        attributes.add(lengthHandle, byteLengthHandle);
+
+        LogicalTime logicalTime = convertTime(time);
+        rtiamb.updateAttributeValues(queue.idQueue, attributes, "actualize checkout".getBytes(), logicalTime);
+        queues.put(queue.idQueue, queue);
+    }
+
+    private void removeHLAObject(double time, int idQueue) throws RTIexception {
+        LogicalTime logicalTime = convertTime(time);
+        rtiamb.deleteObjectInstance(idQueue, "remove client".getBytes(), logicalTime);
+        queues.remove(idQueue);
+    }
+
+    private void sendSendToCheckoutInteraction(double timeStep, int idClient, int idCheckout) throws RTIexception {
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
         Random random = new Random();
-        byte[] quantity = EncodingHelpers.encodeInt(random.nextInt(10) + 1);
 
-        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.AddProduct");
-        int quantityHandle = rtiamb.getParameterHandle( "quantity", interactionHandle );
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.SendToCheckout");
 
-        parameters.add(quantityHandle, quantity);
+        byte[] byteIdClient = EncodingHelpers.encodeInt(idClient);
+        int idClientHandle = rtiamb.getParameterHandle( "idClient", interactionHandle );
+        parameters.add(idClientHandle, byteIdClient);
+
+        byte[] byteIdCheckout = EncodingHelpers.encodeInt(idCheckout);
+        int idCheckoutHandle = rtiamb.getParameterHandle( "idCheckout", interactionHandle );
+        parameters.add(idCheckoutHandle, byteIdCheckout);
 
         LogicalTime time = convertTime( timeStep );
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
     }
 
+    private void sendQueueOverloadInteraction(double timeStep, int idQueue) throws RTIexception {
+        SuppliedParameters parameters =
+                RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+        Random random = new Random();
 
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
+
+        byte[] byteIdQueue = EncodingHelpers.encodeInt(idQueue);
+        int idQueueHandle = rtiamb.getParameterHandle( "idQueue", interactionHandle );
+        parameters.add(idQueueHandle, byteIdQueue);
+
+        LogicalTime time = convertTime( timeStep );
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+    }
 
     private void publish() throws RTIexception {
 
         int queueHandle = rtiamb.getObjectClassHandle("ObjectRoot.Queue");
         int idQueue = rtiamb.getAttributeHandle("idQueue", queueHandle);
         int idCheckout = rtiamb.getAttributeHandle("idCheckout", queueHandle);
-        int clientsInQueue = rtiamb.getAttributeHandle("clientsInQueue", queueHandle);
+        int lenght = rtiamb.getAttributeHandle("length", queueHandle);
         AttributeHandleSet attributeHandleSet =
                 RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
         attributeHandleSet.add(idQueue);
         attributeHandleSet.add(idCheckout);
-        attributeHandleSet.add(clientsInQueue);
+        attributeHandleSet.add(lenght);
         rtiamb.publishObjectClass(queueHandle, attributeHandleSet);
 
         int sendToCheckout = rtiamb.getInteractionClassHandle("InteractionRoot.SendToCheckout");
-        rtiamb.subscribeInteractionClass(sendToCheckout);
+        rtiamb.publishInteractionClass(sendToCheckout);
 
         int queueOverload = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
-        rtiamb.subscribeInteractionClass(queueOverload);
+        rtiamb.publishInteractionClass(queueOverload);
     }
 
     private void subscribe() throws RTIexception {
 
         int clientHandle = rtiamb.getObjectClassHandle("ObjectRoot.Client");
         fedamb.clientHandle = clientHandle;
-        int idClientHandle = rtiamb.getAttributeHandle("idClientHandle", clientHandle);
-        int priopityHandle = rtiamb.getAttributeHandle("priopityHandle", clientHandle);
+        int idClientHandleClient = rtiamb.getAttributeHandle("idClient", clientHandle);
+        int priopityHandle = rtiamb.getAttributeHandle("priority", clientHandle);
         AttributeHandleSet attributes =
                 RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
-        attributes.add(idClientHandle);
+        attributes.add(idClientHandleClient);
         attributes.add(priopityHandle);
         rtiamb.subscribeObjectClassAttributes(clientHandle, attributes);
 
         int checkoutHandle = rtiamb.getObjectClassHandle("ObjectRoot.Checkout");
         fedamb.checkoutHandle = checkoutHandle;
-        int idCheckoutHandle = rtiamb.getAttributeHandle("idCheckoutHandle", checkoutHandle);
-        int idCheckoutClientHandle = rtiamb.getAttributeHandle("idCheckoutClientHandle", checkoutHandle);
+        int idCheckoutHandle = rtiamb.getAttributeHandle("idCheckout", checkoutHandle);
+        int idClientHandleCheckout = rtiamb.getAttributeHandle("idClient", checkoutHandle);
         AttributeHandleSet checkoutAttributes =
                 RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
         checkoutAttributes.add(idCheckoutHandle);
-        checkoutAttributes.add(idCheckoutClientHandle);
+        checkoutAttributes.add(idClientHandleCheckout);
         rtiamb.subscribeObjectClassAttributes(checkoutHandle, checkoutAttributes);
 
-        int shopClose = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
-        rtiamb.subscribeInteractionClass(shopClose);
+        int shopCloseHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
+        fedamb.shopCloseHandle = shopCloseHandle;
+        rtiamb.subscribeInteractionClass(shopCloseHandle);
 
-        int startCheckoutService = rtiamb.getInteractionClassHandle("InteractionRoot.StartCheckoutService");
-        rtiamb.subscribeInteractionClass(startCheckoutService);
+        int openQueueHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOpen");
+        fedamb.openQueueHandle = openQueueHandle;
+        rtiamb.subscribeInteractionClass(openQueueHandle);
 
-        int endCheckoutService = rtiamb.getInteractionClassHandle("InteractionRoot.EndCheckoutService");
-        rtiamb.subscribeInteractionClass(endCheckoutService);
-
-        int joinQueue = rtiamb.getInteractionClassHandle("InteractionRoot.JoinQueue");
-        rtiamb.subscribeInteractionClass(joinQueue);
+        int joinQueueHandle = rtiamb.getInteractionClassHandle("InteractionRoot.JoinQueue");
+        fedamb.joinQueueHandle = joinQueueHandle;
+        rtiamb.subscribeInteractionClass(joinQueueHandle);
     }
 
     private void advanceTime( double timestep ) throws RTIexception
@@ -250,6 +360,10 @@ public class QueueFederate {
     private void log( String message )
     {
         System.out.println( "QueueFederate   : " + message );
+    }
+
+    private void log(String message, double time) {
+        System.out.println("QueueFederate  : " + message + ", time: " + time);
     }
 
     public static void main(String[] args) {
