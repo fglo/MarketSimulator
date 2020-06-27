@@ -6,8 +6,12 @@ import hla.rti.jlc.NullFederateAmbassador;
 import sim.Example13Federate;
 import sim.HandlersHelper;
 import org.portico.impl.hla13.types.DoubleTime;
+import sim.objects.Checkout;
+import sim.objects.Client;
+import sim.objects.Queue;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 
 public class StatisticsAmbassador extends NullFederateAmbassador {
@@ -33,6 +37,20 @@ public class StatisticsAmbassador extends NullFederateAmbassador {
     protected int queueOverloadHandle    = 0;
     protected int startCheckoutServiceHandle = 0;
     protected int endCheckoutServiceHandle = 0;
+
+    protected int queueHandle = 0;
+    protected ArrayList<Integer> queueInstancesHandles = new ArrayList();
+    protected HashMap<Integer, Queue> queues = new HashMap<>();
+
+    protected int clientHandle = 0;
+    protected ArrayList<Integer> clientInstancesHandles = new ArrayList();
+    protected HashMap<Integer, Client> clients = new HashMap<>();
+
+    protected int checkoutHandle = 0;
+    protected ArrayList<Integer> checkoutInstancesHandles = new ArrayList();
+    protected HashMap<Integer, Checkout> checkouts = new HashMap<>();
+
+
 
 
     public void timeRegulationEnabled( LogicalTime theFederateTime )
@@ -206,11 +224,113 @@ public class StatisticsAmbassador extends NullFederateAmbassador {
 			}
 		}
 
-		log(builder.toString());
+        if(queueInstancesHandles.contains(theObject)) {
+            builder.append("handle=" + theObject);
+            builder.append(", attributeCount=" + theAttributes.size());
+
+            try {
+                int idQueue = EncodingHelpers.decodeInt(theAttributes.getValue(0));
+                Queue queue;
+                if(queues.containsKey(idQueue)) {
+                    queue = queues.get(idQueue);
+                    queue.idQueue = idQueue;
+                    queue.idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                    queue.length = EncodingHelpers.decodeInt(theAttributes.getValue(2));
+                } else {
+                    queue = new Queue(idQueue,
+                            theAttributes.getAttributeHandle(1),
+                            theAttributes.getAttributeHandle(2));
+                }
+                queues.put(idQueue, queue);
+
+            } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
+                //arrayIndexOutOfBounds.printStackTrace();
+            }
+            log(builder.toString());
+        } else if (clientInstancesHandles.contains(theObject)) {
+            builder.append("handle=" + theObject);
+            builder.append(", attributeCount=" + theAttributes.size());
+
+            try {
+                int idClient = EncodingHelpers.decodeInt(theAttributes.getValue(0));
+                Client client;
+                if (clients.containsKey(idClient)) {
+                    client = clients.get(idClient);
+                    client.idClient = idClient;
+                    client.priority = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                    client.shoppingTime = EncodingHelpers.decodeInt(theAttributes.getValue(2));
+                } else {
+                    client = new Client(idClient);
+                    client.idClient = idClient;
+                    client.priority = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                    client.shoppingTime = EncodingHelpers.decodeInt(theAttributes.getValue(2));
+                }
+                clients.put(idClient, client);
+
+            } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
+                //arrayIndexOutOfBounds.printStackTrace();
+            }
+            log(builder.toString());
+        } else if(checkoutInstancesHandles.contains(theObject)) {
+            builder.append("handle=" + theObject);
+            builder.append(", attributeCount=" + theAttributes.size());
+
+            try {
+                int idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(0));
+                Checkout checkout;
+                if(checkouts.containsKey(idCheckout)) {
+                    checkout = checkouts.get(idCheckout);
+                    checkout.idCheckout = idCheckout;
+                    checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                } else {
+                    checkout = new Checkout(idCheckout);
+                    checkout.idCheckout = idCheckout;
+                    checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                }
+                checkouts.put(idCheckout, checkout);
+
+            } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
+                //arrayIndexOutOfBounds.printStackTrace();
+            }
+
+            log(builder.toString());
+        }
+        log(builder.toString());
 	}
 
     @Override
     public void discoverObjectInstance(int theObject, int theObjectClass, String objectName) throws CouldNotDiscover, ObjectClassNotKnown, FederateInternalError {
-        System.out.println("Pojawil sie nowy obiekt typu SimObject");
+        if(theObjectClass == queueHandle) {
+            log("new queue object");
+            queueInstancesHandles.add(theObject);
+        } else if(theObjectClass == clientHandle) {
+            clientInstancesHandles.add(theObject);
+            log("new client object");
+        } else if (theObjectClass == checkoutHandle) {
+            checkoutInstancesHandles.add(theObject);
+            log("new checkout object");
+        }
+    }
+
+    @Override
+    public void removeObjectInstance( int theObject,
+                                      byte[] userSuppliedTag,
+                                      LogicalTime theTime,
+                                      EventRetractionHandle retractionHandle )
+    {
+        double time = convertTime(theTime);
+        if(queues.containsKey(theObject)) {
+            queues.remove(theObject);
+            queueInstancesHandles.remove((Integer)theObject);
+            log( "removed queue object, handle=" + theObject);
+        } else  if(clientInstancesHandles.contains(theObject)) {
+            clients.remove(theObject);
+            clientInstancesHandles.remove((Integer)theObject);
+            log( "removed client object, handle=" + theObject);
+        } else if (checkoutInstancesHandles.contains(theObject)) {
+            checkouts.remove(theObject);
+            checkoutInstancesHandles.remove((Integer)theObject);
+            log( "removed checkout object, handle=" + theObject);
+        }
     }
 }
