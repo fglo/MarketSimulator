@@ -6,6 +6,8 @@ import hla.rti.jlc.EncodingHelpers;
 import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
+import sim.objects.Checkout;
+import sim.objects.Client;
 import sim.objects.Queue;
 
 import java.io.BufferedReader;
@@ -101,10 +103,12 @@ public class QueueFederate {
 
             for (Map.Entry<Integer, Queue> entry : queues.entrySet()) {
                 Queue queue = entry.getValue();
-                if(fedamb.checkouts.get(queue.idCheckout).idClient == -1 && !queue.clientsInQueue.isEmpty()) {
+                Checkout checkout = fedamb.checkouts.get(queue.idCheckout);
+                if(checkout != null && checkout.idClient == -1 && !queue.clientsInQueue.isEmpty()) {
                     int idClientToGo = queue.clientsInQueue.get(0);
                     for (int idClient : queue.clientsInQueue) {
-                        if(fedamb.clients.get(idClient).priority == 1) {
+                        Client client = fedamb.clients.get(idClient);
+                        if(client != null && client.priority == 1) {
                             idClientToGo = idClient;
                             break;
                         }
@@ -138,9 +142,14 @@ public class QueueFederate {
             log("queue with id: " + idQueue + " was not found.");
             return;
         }
-        queue.clientsInQueue.add(idClient);
+        queue.addToQueue(idClient);
         updateHLAObject(time, queue);
         log("join queue", time);
+
+        if(queue.length > 5) {
+            sendQueueOverloadInteraction(time, idQueue);
+            log( "queue is overloaded", time);
+        }
     }
 
     private void sendToCheckout(double time, int idQueue, int idClient, int idCheckout) throws RTIexception {
@@ -149,7 +158,7 @@ public class QueueFederate {
             log("queue with id: " + idQueue + " was not found.");
             return;
         }
-        queue.clientsInQueue.remove(idClient);
+        queue.removeFromQueue(idClient);
         sendSendToCheckoutInteraction(time, idClient, idCheckout);
         updateHLAObject(time, queue);
         log("send to checkout", time);
@@ -202,7 +211,7 @@ public class QueueFederate {
                 RtiFactoryFactory.getRtiFactory().createSuppliedAttributes();
         int classHandle = rtiamb.getObjectClass(queue.idQueue);
 
-        int idClientHandle = rtiamb.getAttributeHandle("idClient", classHandle);
+        int idClientHandle = rtiamb.getAttributeHandle("idQueue", classHandle);
         byte[] byteIdClient = EncodingHelpers.encodeInt(queue.idQueue);
         attributes.add(idClientHandle, byteIdClient);
 
@@ -244,6 +253,21 @@ public class QueueFederate {
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
     }
 
+    private void sendQueueOverloadInteraction(double timeStep, int idQueue) throws RTIexception {
+        SuppliedParameters parameters =
+                RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+        Random random = new Random();
+
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
+
+        byte[] byteIdQueue = EncodingHelpers.encodeInt(idQueue);
+        int idQueueHandle = rtiamb.getParameterHandle( "idQueue", interactionHandle );
+        parameters.add(idQueueHandle, byteIdQueue);
+
+        LogicalTime time = convertTime( timeStep );
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+    }
+
     private void publish() throws RTIexception {
 
         int queueHandle = rtiamb.getObjectClassHandle("ObjectRoot.Queue");
@@ -258,10 +282,10 @@ public class QueueFederate {
         rtiamb.publishObjectClass(queueHandle, attributeHandleSet);
 
         int sendToCheckout = rtiamb.getInteractionClassHandle("InteractionRoot.SendToCheckout");
-        rtiamb.subscribeInteractionClass(sendToCheckout);
+        rtiamb.publishInteractionClass(sendToCheckout);
 
         int queueOverload = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
-        rtiamb.subscribeInteractionClass(queueOverload);
+        rtiamb.publishInteractionClass(queueOverload);
     }
 
     private void subscribe() throws RTIexception {

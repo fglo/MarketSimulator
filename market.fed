@@ -55,9 +55,6 @@
       (class QueueOverload reliable timestamp TestSpace
         (parameter idQueue)
       )
-      (class StartCheckoutService reliable timestamp TestSpace
-        (parameter idCheckout)
-      )
       (class FinishCheckoutService reliable timestamp TestSpace
         (parameter idClient)
       )

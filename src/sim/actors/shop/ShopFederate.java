@@ -120,7 +120,6 @@ public class ShopFederate {
         shopStatus = false;
         closeCheckout(time);
         sendCloseShopInteraction(time);
-
     }
 
     private void openCheckout(double time) throws RTIexception {

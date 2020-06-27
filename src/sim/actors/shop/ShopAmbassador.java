@@ -40,7 +40,11 @@ public class ShopAmbassador extends NullFederateAmbassador {
 
     private void log( String message )
     {
-        System.out.println( "FederateAmbassador: " + message );
+        System.out.println( "ShopAmbassador: " + message );
+    }
+
+    private void log(String message, double time) {
+        System.out.println("ShopAmbassador: " + message + ", time: " + time);
     }
 
     public void synchronizationPointRegistrationFailed( String label )
@@ -102,18 +106,18 @@ public class ShopAmbassador extends NullFederateAmbassador {
                                    byte[] tag,
                                    LogicalTime theTime,
                                    EventRetractionHandle eventRetractionHandle) {
-        StringBuilder builder = new StringBuilder("Interaction Received:");
+        StringBuilder builder = new StringBuilder("interaction Received: ");
+        double time = convertTime(theTime);
+
         if (interactionClass == queueOverloadHandle) {
-            double time = convertTime(theTime);
             ExternalEvent event = new ExternalEvent(EventType.QUEUE_OVERLOAD, time);
             externalEvents.add(event);
 
-            builder.append("CheckoutOpen , time=" + time);
-            builder.append("\n");
+            builder.append("QueueOverload");
 
         }
 
-        log(builder.toString());
+        log(builder.toString(), time);
     }
 
 }

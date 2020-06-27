@@ -90,14 +90,15 @@ public class ClientFederate {
             }
 
             if (shopOpen) {
-                for (int i = 0; i < ThreadLocalRandom.current().nextInt(0, 3); i++) {
+                if(ThreadLocalRandom.current().nextInt(0, 100) < 10) {
                     spawnNewClient(timeToAdvance);
                 }
             }
 
             for (Map.Entry<Integer, Client> entry : clients.entrySet()) {
-                if (--entry.getValue().shoppingTime <= 0 && !fedamb.queues.isEmpty()) {
-                    enterShortestQueue(timeToAdvance, entry.getValue());
+                Client client = entry.getValue();
+                if (!client.inQueue && --client.shoppingTime <= 0 && !fedamb.queues.isEmpty()) {
+                    enterShortestQueue(timeToAdvance, client);
                 }
             }
 
@@ -137,13 +138,14 @@ public class ClientFederate {
 
     private void endShopping(double time, int idClient) throws RTIexception {
         removeHLAObject(time, idClient);
-        log("customer has been served", time);
+        log("client [" + idClient + "] exited shop", time);
     }
 
     private void spawnNewClient(double time) throws RTIexception {
         int idClient = registerCheckoutObject();
-        updateHLAObject(time, idClient);
-        log("a client enter the shop", time);
+        Client client = clients.get(idClient);
+        updateHLAObject(time, client);
+        log("a client [" + idClient + "] enter the shop", time);
     }
 
     private void enterShortestQueue(double time, Client client) throws RTIexception {
@@ -159,8 +161,10 @@ public class ClientFederate {
                 shortestQueueLength = queue.length;
             }
         }
+        client.inQueue = true;
+        updateHLAObject(time, client);
         sendJoinQueueInteraction(time, client.idClient, shortestQueueId);
-        log("client is entering the shortest queue", time);
+        log("client [" + client.idClient + "] is entering the shortest queue", time);
     }
 
     private void waitForUser() {
@@ -181,11 +185,10 @@ public class ClientFederate {
         return idClient;
     }
 
-    private void updateHLAObject(double time, int idClient) throws RTIexception {
+    private void updateHLAObject(double time, Client client) throws RTIexception {
         SuppliedAttributes attributes =
                 RtiFactoryFactory.getRtiFactory().createSuppliedAttributes();
 
-        Client client = clients.get(idClient);
         int classHandle = rtiamb.getObjectClass(client.idClient);
 
         int idClientHandle = rtiamb.getAttributeHandle("idClient", classHandle);
@@ -198,13 +201,13 @@ public class ClientFederate {
 
         LogicalTime logicalTime = convertTime(time);
         rtiamb.updateAttributeValues(client.idClient, attributes, "actualize checkout".getBytes(), logicalTime);
-        clients.put(idClient, client);
+        clients.put(client.idClient, client);
     }
 
     private void removeHLAObject(double time, int idClient) throws RTIexception {
         LogicalTime logicalTime = convertTime(time);
-        rtiamb.deleteObjectInstance(idClient, "remove client".getBytes(), logicalTime);
         clients.remove(idClient);
+        rtiamb.deleteObjectInstance(idClient, "remove client".getBytes(), logicalTime);
     }
 
     private void sendJoinQueueInteraction(double timeStep, int idClient, int idQueue) throws RTIexception {
@@ -218,7 +221,7 @@ public class ClientFederate {
         parameters.add(idClientHandle, byteIdClient);
 
         int idQueueHandle = rtiamb.getParameterHandle( "idQueue", interactionHandle );
-        byte[] byteIdQueue = EncodingHelpers.encodeInt(idClient);
+        byte[] byteIdQueue = EncodingHelpers.encodeInt(idQueue);
         parameters.add(idQueueHandle, byteIdQueue);
 
         LogicalTime time = convertTime( timeStep );
