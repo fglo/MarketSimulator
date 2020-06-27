@@ -5,6 +5,7 @@ import hla.rti.jlc.RtiFactoryFactory;
 import sim.HandlersHelper;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
+import sim.statistics.ExternalEvent;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -17,6 +18,15 @@ public class StatisticsFederate {
 
 	private RTIambassador rtiamb;
 	private StatisticsAmbassador fedamb;
+	private int shopOpenCounter = 0;
+	private int shopCloseCounter = 0;
+	private int checkoutOpenCounter = 0;
+	private int joinQueueCounter = 0;
+	private int sendToCheckoutCounter = 0;
+	private int startCheckoutServiceCounter = 0;
+	private int endCheckoutServiceCounter = 0;
+	private int queueOverloadCounter = 0;
+
 	
 	public void runFederate() throws Exception{
 		rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
@@ -38,7 +48,7 @@ public class StatisticsFederate {
 			urle.printStackTrace();
 			return;
 		}
-		
+
 		fedamb = new StatisticsAmbassador();
 		rtiamb.joinFederationExecution( "StatisticsFederate", "MarketFederation", fedamb );
 		log( "Joined Federation as " + "StatisticsFederate" );
@@ -64,12 +74,48 @@ public class StatisticsFederate {
 
 		publishAndSubscribe();
 		log( "Published and Subscribed" );
-		
-		
+
+
 		while(fedamb.running) {
             advanceTime(1.0);
+
+			if(fedamb.externalEvents.size() > 0) {
+				fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
+				for(ExternalEvent externalEvent : fedamb.externalEvents) {
+					fedamb.federateTime = externalEvent.getTime();
+					switch (externalEvent.getEventType()) {
+						case QUEUE_OVERLOAD:
+							this.queueOverload();
+							break;
+						case SHOP_OPEN:
+							this.shopOpen();
+							break;
+						case SHOP_CLOSE:
+							this.shopClose();
+							break;
+						case CHECKOUT_OPEN:
+							this.checkoutOpen();
+							break;
+						case JOIN_QUEUE:
+							this.joinQueue();
+							break;
+						case SEND_TO_CHECKOUT:
+							this.sendToCheckout();
+							break;
+						case START_CHECKOUT_SERVICE:
+							this.startCheckoutService();
+							break;
+						case END_CHECKOUT_SERVICE:
+							this.endCheckoutService();
+							break;
+					}
+				}
+				fedamb.externalEvents.clear();
+			}
+
 			rtiamb.tick();
 		}
+
 
 		rtiamb.resignFederationExecution( ResignAction.NO_ACTION );
 		log( "Resigned from Federation" );
@@ -87,6 +133,46 @@ public class StatisticsFederate {
 		{
 			log( "Didn't destroy federation, federates still joined" );
 		}
+	}
+
+	private void shopOpen() {
+		shopOpenCounter++;
+		log("shop open: " + shopOpenCounter);
+	}
+
+	private void shopClose() {
+		shopCloseCounter++;
+		log("shop close: " + shopCloseCounter);
+	}
+
+	private void checkoutOpen () {
+		checkoutOpenCounter++;
+		log("checkout open: " + checkoutOpenCounter);
+	}
+
+	private void joinQueue() {
+		joinQueueCounter++;
+		log("join queue: " + joinQueueCounter);
+	}
+
+	private void sendToCheckout() {
+		sendToCheckoutCounter++;
+		log("send to checkout: " + sendToCheckoutCounter);
+	}
+
+	private void startCheckoutService() {
+		startCheckoutServiceCounter++;
+		log("start checkout service: " + startCheckoutServiceCounter);
+	}
+
+	private void endCheckoutService() {
+		endCheckoutServiceCounter++;
+		log("end checkout service: " + endCheckoutServiceCounter);
+	}
+
+	private void queueOverload() {
+		queueOverloadCounter++;
+		log("queue overload: " + queueOverloadCounter);
 	}
 
     private void waitForUser()
@@ -138,6 +224,39 @@ public class StatisticsFederate {
                 interactionHandle);
 
 		rtiamb.subscribeInteractionClass(interactionHandle);
+
+		int shopOpen = rtiamb.getInteractionClassHandle("InteractionRoot.ShopOpen");
+		fedamb.shopOpenHandle = shopOpen;
+		rtiamb.subscribeInteractionClass(shopOpen);
+
+		int shopClose = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
+		fedamb.shopCloseHandle = shopClose;
+		rtiamb.subscribeInteractionClass(shopClose);
+
+		int checkoutOpen = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutOpen");
+		fedamb.checkoutOpenHandle = checkoutOpen;
+		rtiamb.subscribeInteractionClass(checkoutOpen);
+
+		int joinQueueHandle = rtiamb.getInteractionClassHandle("InteractionRoot.JoinQueue");
+		fedamb.joinQueueHandle = joinQueueHandle;
+		rtiamb.subscribeInteractionClass(joinQueueHandle);
+
+		int sendToCheckoutHandle = rtiamb.getInteractionClassHandle("InteractionRoot.SendToCheckout");
+		fedamb.sendToCheckoutHandle = sendToCheckoutHandle;
+		rtiamb.subscribeInteractionClass(sendToCheckoutHandle);
+
+		int queueOverloadHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverloadHandle");
+		fedamb.queueOverloadHandle = queueOverloadHandle;
+		rtiamb.subscribeInteractionClass(queueOverloadHandle);
+
+		int startCheckoutServiceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.StartCheckoutServiceHandle");
+		fedamb.startCheckoutServiceHandle = startCheckoutServiceHandle;
+		rtiamb.subscribeInteractionClass(startCheckoutServiceHandle);
+
+		int endCheckoutServiceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.EndCheckoutServiceHandle");
+		fedamb.endCheckoutServiceHandle = endCheckoutServiceHandle;
+		rtiamb.subscribeInteractionClass(endCheckoutServiceHandle);
+
 	}
 
     private void enableTimePolicy() throws RTIexception

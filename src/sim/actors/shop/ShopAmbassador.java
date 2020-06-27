@@ -105,12 +105,13 @@ public class ShopAmbassador extends NullFederateAmbassador {
                                    LogicalTime theTime,
                                    EventRetractionHandle eventRetractionHandle) {
         StringBuilder builder = new StringBuilder("Interaction Received:");
+
         if (interactionClass == QueueOverloadHandle) {
             double time = convertTime(theTime);
             ExternalEvent event = new ExternalEvent(EventType.QUEUE_OVERLOAD, time);
             externalEvents.add(event);
 
-            builder.append("CheckoutOpen , time=" + time);
+            builder.append("Queue Overload , time=" + time);
             builder.append("\n");
 
         } else if(interactionClass == HandlersHelper

@@ -7,6 +7,9 @@ import sim.Example13Federate;
 import sim.HandlersHelper;
 import org.portico.impl.hla13.types.DoubleTime;
 
+import java.util.ArrayList;
+
+
 public class StatisticsAmbassador extends NullFederateAmbassador {
 
 	protected boolean running = true;
@@ -19,6 +22,17 @@ public class StatisticsAmbassador extends NullFederateAmbassador {
 
     protected boolean isAnnounced        = false;
     protected boolean isReadyToRun       = false;
+
+    protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
+
+    protected int shopOpenHandle         = 0;
+    protected int shopCloseHandle        = 0;
+    protected int checkoutOpenHandle     = 0;
+    protected int joinQueueHandle        = 0;
+    protected int sendToCheckoutHandle   = 0;
+    protected int queueOverloadHandle    = 0;
+    protected int startCheckoutServiceHandle = 0;
+    protected int endCheckoutServiceHandle = 0;
 
 
     public void timeRegulationEnabled( LogicalTime theFederateTime )
@@ -70,9 +84,73 @@ public class StatisticsAmbassador extends NullFederateAmbassador {
 			LogicalTime theTime, EventRetractionHandle eventRetractionHandle) {
 		StringBuilder builder = new StringBuilder("Interaction Received: ");
 
-		if (interactionClass == HandlersHelper
+        if(interactionClass == queueOverloadHandle) {
+            double time = convertTime(theTime);
+            ExternalEvent event = new ExternalEvent(EventType.QUEUE_OVERLOAD, time);
+            externalEvents.add(event);
+
+            builder.append("Queue overload , time=" + time);
+            builder.append("\n");
+
+        } else if (interactionClass == shopOpenHandle) {
+            double time = convertTime(theTime);
+            ExternalEvent event = new ExternalEvent(EventType.SHOP_OPEN, time);
+            externalEvents.add(event);
+
+            builder.append("Shop open , time=" + time);
+            builder.append("\n");
+
+        } else if (interactionClass == shopCloseHandle) {
+            double time = convertTime(theTime);
+            ExternalEvent event = new ExternalEvent(EventType.SHOP_CLOSE, time);
+            externalEvents.add(event);
+
+            builder.append("Shop close , time=" + time);
+            builder.append("\n");
+
+        } else if (interactionClass == checkoutOpenHandle) {
+            double time = convertTime(theTime);
+            ExternalEvent event = new ExternalEvent(EventType.CHECKOUT_OPEN, time);
+            externalEvents.add(event);
+
+            builder.append("Checkout open , time=" + time);
+            builder.append("\n");
+
+        } else if (interactionClass == joinQueueHandle) {
+            double time = convertTime(theTime);
+            ExternalEvent event = new ExternalEvent(EventType.JOIN_QUEUE, time);
+            externalEvents.add(event);
+
+            builder.append("JoinQueue , time=" + time);
+            builder.append("\n");
+
+        } else if (interactionClass == sendToCheckoutHandle) {
+            double time = convertTime(theTime);
+            ExternalEvent event = new ExternalEvent(EventType.SEND_TO_CHECKOUT, time);
+            externalEvents.add(event);
+
+            builder.append("Send to checkout , time=" + time);
+            builder.append("\n");
+
+        } else if (interactionClass == startCheckoutServiceHandle) {
+            double time = convertTime(theTime);
+            ExternalEvent event = new ExternalEvent(EventType.START_CHECKOUT_SERVICE, time);
+            externalEvents.add(event);
+
+            builder.append("Start checkout service , time=" + time);
+            builder.append("\n");
+
+        } else if (interactionClass == endCheckoutServiceHandle) {
+            double time = convertTime(theTime);
+            ExternalEvent event = new ExternalEvent(EventType.END_CHECKOUT_SERVICE, time);
+            externalEvents.add(event);
+
+            builder.append("End checkout service , time=" + time);
+            builder.append("\n");
+
+        } else if (interactionClass == HandlersHelper
 				.getInteractionHandleByName("InteractionRoot.Finish")) {
-			builder.append("Odebrano interakcję kończącą.");
+			builder.append("End of interaction has been recived.");
 			running = false;
 		}
 

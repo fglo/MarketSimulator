@@ -102,7 +102,7 @@ public class QueueFederate {
     }
 
     private void joinQueue(int idQueue) {
-        
+
     }
 
 
