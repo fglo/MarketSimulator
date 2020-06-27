@@ -140,7 +140,7 @@ public class QueueFederate {
     private void joinQueue(double time, int idClient, int idQueue) throws RTIexception {
         Queue queue = queues.get(idQueue);
         if(queue == null) {
-            log("queue with id: " + idQueue + " was not found.");
+            log("queue with [" + idQueue + "] was not found");
             return;
         }
         queue.addToQueue(idClient);
@@ -156,7 +156,7 @@ public class QueueFederate {
     private void sendToCheckout(double time, int idQueue, int idClient, int idCheckout) throws RTIexception {
         Queue queue = queues.get(idQueue);
         if(queue == null) {
-            log("queue with id: " + idQueue + " was not found.", time);
+            log("queue with [" + idQueue + "] was not found", time);
             return;
         }
         queue.removeFromQueue(idClient);
@@ -294,11 +294,13 @@ public class QueueFederate {
         int clientHandle = rtiamb.getObjectClassHandle("ObjectRoot.Client");
         fedamb.clientHandle = clientHandle;
         int idClientHandleClient = rtiamb.getAttributeHandle("idClient", clientHandle);
-        int priopityHandle = rtiamb.getAttributeHandle("priority", clientHandle);
+        int priorityHandle = rtiamb.getAttributeHandle("priority", clientHandle);
+        int hasCashHandle = rtiamb.getAttributeHandle("hasCash", clientHandle);
         AttributeHandleSet attributes =
                 RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
         attributes.add(idClientHandleClient);
-        attributes.add(priopityHandle);
+        attributes.add(priorityHandle);
+        attributes.add(hasCashHandle);
         rtiamb.subscribeObjectClassAttributes(clientHandle, attributes);
 
         int checkoutHandle = rtiamb.getObjectClassHandle("ObjectRoot.Checkout");

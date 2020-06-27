@@ -18,6 +18,7 @@
       (class Client
         (attribute idClient reliable timestamp TestSpace)
         (attribute priority reliable timestamp TestSpace)
+        (attribute hasCash reliable timestamp TestSpace)
       )
       (class Queue
         (attribute idQueue reliable timestamp TestSpace)

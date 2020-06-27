@@ -190,7 +190,6 @@ public class QueueAmbassador extends NullFederateAmbassador {
             } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
                 //arrayIndexOutOfBounds.printStackTrace();
             }
-            log(builder.toString());
         } else if(checkoutInstancesHandles.contains(theObject)) {
             builder.append("handle=" + theObject);
             builder.append(", attributeCount=" + theAttributes.size());
@@ -212,9 +211,8 @@ public class QueueAmbassador extends NullFederateAmbassador {
             } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
                 //arrayIndexOutOfBounds.printStackTrace();
             }
-
-            log(builder.toString(), time);
         }
+        log(builder.toString(), time);
     }
 
     @Override
@@ -252,5 +250,4 @@ public class QueueAmbassador extends NullFederateAmbassador {
             log( "removed checkout object, handle=" + theObject, time);
         }
     }
-
 }

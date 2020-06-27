@@ -7,6 +7,7 @@ import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
 import sim.objects.Checkout;
+import sim.objects.Client;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -123,9 +124,19 @@ public class CheckoutFederate {
     }
 
     private void startCheckoutService(double time, int idCheckout, int idClient) throws RTIexception {
+        Client client = fedamb.clients.get(idClient);
+        if(client == null) {
+            log("checkout [" + idClient + "] was not found", time);
+            return;
+        }
+        if(client.hasCach == 0) {
+            log("client [" + idClient + "] does not have cash. and was rejested", time);
+            return;
+        }
+
         Checkout checkout = checkouts.get(idCheckout);
         if(checkout == null) {
-            log("checkout with id: " + idCheckout + " was not found.", time);
+            log("checkout with id: [" + idCheckout + "] was not found", time);
             return;
         }
         checkout.idClient = idClient;
@@ -241,6 +252,18 @@ public class CheckoutFederate {
     }
 
     private void subscribe() throws RTIexception {
+        int clientHandle = rtiamb.getObjectClassHandle("ObjectRoot.Client");
+        fedamb.clientHandle = clientHandle;
+        int idClientHandleClient = rtiamb.getAttributeHandle("idClient", clientHandle);
+        int priorityHandle = rtiamb.getAttributeHandle("priority", clientHandle);
+        int hasCashHandle = rtiamb.getAttributeHandle("hasCash", clientHandle);
+        AttributeHandleSet attributes =
+                RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
+        attributes.add(idClientHandleClient);
+        attributes.add(priorityHandle);
+        attributes.add(hasCashHandle);
+        rtiamb.subscribeObjectClassAttributes(clientHandle, attributes);
+
         int checkoutOpenHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutOpen");
         fedamb.checkoutOpenHandle = checkoutOpenHandle;
         rtiamb.subscribeInteractionClass(checkoutOpenHandle);
