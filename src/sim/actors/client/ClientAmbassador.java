@@ -12,15 +12,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class ClientAmbassador extends NullFederateAmbassador {
-    protected double federateTime        = 0.0;
-    protected double federateLookahead   = 1.0;
+    protected double federateTime = 0.0;
+    protected double federateLookahead = 1.0;
 
-    protected boolean isRegulating       = false;
-    protected boolean isConstrained      = false;
-    protected boolean isAdvancing        = false;
+    protected boolean isRegulating = false;
+    protected boolean isConstrained = false;
+    protected boolean isAdvancing = false;
 
-    protected boolean isAnnounced        = false;
-    protected boolean isReadyToRun       = false;
+    protected boolean isAnnounced = false;
+    protected boolean isReadyToRun = false;
 
     protected boolean running = true;
 
@@ -34,55 +34,55 @@ public class ClientAmbassador extends NullFederateAmbassador {
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
     protected HashMap<Integer, Queue> queues = new HashMap<>();
 
-    public void timeRegulationEnabled( LogicalTime theFederateTime ) {
-        this.federateTime = convertTime( theFederateTime );
+    public void timeRegulationEnabled(LogicalTime theFederateTime) {
+        this.federateTime = convertTime(theFederateTime);
         this.isRegulating = true;
     }
 
-    public void timeConstrainedEnabled( LogicalTime theFederateTime ) {
-        this.federateTime = convertTime( theFederateTime );
+    public void timeConstrainedEnabled(LogicalTime theFederateTime) {
+        this.federateTime = convertTime(theFederateTime);
         this.isConstrained = true;
     }
 
-    public void timeAdvanceGrant( LogicalTime theTime ) {
-        this.federateTime = convertTime( theTime );
+    public void timeAdvanceGrant(LogicalTime theTime) {
+        this.federateTime = convertTime(theTime);
         this.isAdvancing = false;
     }
 
-    public void synchronizationPointRegistrationFailed( String label ) {
-        log( "Failed to register sync point: " + label );
+    public void synchronizationPointRegistrationFailed(String label) {
+        log("Failed to register sync point: " + label);
     }
 
-    public void synchronizationPointRegistrationSucceeded( String label ) {
-        log( "Successfully registered sync point: " + label );
+    public void synchronizationPointRegistrationSucceeded(String label) {
+        log("Successfully registered sync point: " + label);
     }
 
-    public void announceSynchronizationPoint( String label, byte[] tag ) {
-        log( "Synchronization point announced: " + label );
-        if( label.equals(Example13Federate.READY_TO_RUN) )
+    public void announceSynchronizationPoint(String label, byte[] tag) {
+        log("Synchronization point announced: " + label);
+        if (label.equals(Example13Federate.READY_TO_RUN))
             this.isAnnounced = true;
     }
 
-    public void federationSynchronized( String label ) {
-        log( "Federation Synchronized: " + label );
-        if( label.equals(Example13Federate.READY_TO_RUN) )
+    public void federationSynchronized(String label) {
+        log("Federation Synchronized: " + label);
+        if (label.equals(Example13Federate.READY_TO_RUN))
             this.isReadyToRun = true;
     }
 
-    private double convertTime( LogicalTime logicalTime ) {
+    private double convertTime(LogicalTime logicalTime) {
         // PORTICO SPECIFIC!!
-        return ((DoubleTime)logicalTime).getTime();
+        return ((DoubleTime) logicalTime).getTime();
     }
 
-	private void log(String message) {
-		System.out.println("ClientAmbassador: " + message);
-	}
+    private void log(String message) {
+        System.out.println("ClientAmbassador: " + message);
+    }
 
     private void log(String message, double time) {
         System.out.println("ClientAmbassador: " + message + ", time: " + time);
     }
 
-	///LOGIC
+    ///LOGIC
 
     public void receiveInteraction(int interactionClass,
                                    ReceivedInteraction theInteraction, byte[] tag) {
@@ -131,34 +131,34 @@ public class ClientAmbassador extends NullFederateAmbassador {
     }
 
     @Override
-	public void reflectAttributeValues(int theObject,
-			ReflectedAttributes theAttributes, byte[] tag) {
-		reflectAttributeValues(theObject, theAttributes, tag, null, null);
-	}
+    public void reflectAttributeValues(int theObject,
+                                       ReflectedAttributes theAttributes, byte[] tag) {
+        reflectAttributeValues(theObject, theAttributes, tag, null, null);
+    }
 
     @Override
-	public void reflectAttributeValues(int theObject,
-			ReflectedAttributes theAttributes, byte[] tag, LogicalTime theTime,
-			EventRetractionHandle retractionHandle) {
-		StringBuilder builder = new StringBuilder("reflection for object: ");
+    public void reflectAttributeValues(int theObject,
+                                       ReflectedAttributes theAttributes, byte[] tag, LogicalTime theTime,
+                                       EventRetractionHandle retractionHandle) {
+        StringBuilder builder = new StringBuilder("reflection for object: ");
         double time = convertTime(theTime);
 
-		if(queueInstancesHandles.contains(theObject)) {
+        if (queueInstancesHandles.contains(theObject)) {
             builder.append("handle=" + theObject);
             builder.append(", attributeCount=" + theAttributes.size());
 
             try {
                 int idQueue = EncodingHelpers.decodeInt(theAttributes.getValue(0));
+                int idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                int length = EncodingHelpers.decodeInt(theAttributes.getValue(2));
                 Queue queue;
-                if(queues.containsKey(idQueue)) {
+                if (queues.containsKey(idQueue)) {
                     queue = queues.get(idQueue);
                     queue.idQueue = idQueue;
-                    queue.idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(1));
-                    queue.length = EncodingHelpers.decodeInt(theAttributes.getValue(2));
+                    queue.idCheckout = idCheckout;
+                    queue.length = length;
                 } else {
-                    queue = new Queue(idQueue,
-                            theAttributes.getAttributeHandle(1),
-                            theAttributes.getAttributeHandle(2));
+                    queue = new Queue(idQueue, idCheckout, length);
                 }
                 queues.put(idQueue, queue);
 
@@ -167,33 +167,31 @@ public class ClientAmbassador extends NullFederateAmbassador {
             }
             log(builder.toString(), time);
         }
-	}
+    }
 
     @Override
     public void discoverObjectInstance(int theObject, int theObjectClass, String objectName) throws CouldNotDiscover, ObjectClassNotKnown, FederateInternalError {
-        if(theObjectClass == queueHandle) {
+        if (theObjectClass == queueHandle) {
             log("new queue object");
             queueInstancesHandles.add(theObject);
         }
     }
 
     @Override
-    public void removeObjectInstance( int theObject, byte[] userSuppliedTag )
-    {
+    public void removeObjectInstance(int theObject, byte[] userSuppliedTag) {
         removeObjectInstance(theObject, userSuppliedTag, null, null);
     }
 
     @Override
-    public void removeObjectInstance( int theObject,
-                                      byte[] userSuppliedTag,
-                                      LogicalTime theTime,
-                                      EventRetractionHandle retractionHandle )
-    {
+    public void removeObjectInstance(int theObject,
+                                     byte[] userSuppliedTag,
+                                     LogicalTime theTime,
+                                     EventRetractionHandle retractionHandle) {
         double time = convertTime(theTime);
-        if(queues.containsKey(theObject)) {
+        if (queues.containsKey(theObject)) {
             queues.remove(theObject);
-            queueInstancesHandles.remove((Integer)theObject);
-            log( "removed queue object, handle=" + theObject, time);
+            queueInstancesHandles.remove((Integer) theObject);
+            log("removed queue object, handle=" + theObject, time);
         }
     }
 }

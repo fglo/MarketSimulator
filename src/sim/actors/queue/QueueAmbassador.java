@@ -175,15 +175,16 @@ public class QueueAmbassador extends NullFederateAmbassador {
 
             try {
                 int idClient = EncodingHelpers.decodeInt(theAttributes.getValue(0));
+                int priority = EncodingHelpers.decodeInt(theAttributes.getValue(1));
                 Client client;
                 if(clients.containsKey(idClient)) {
                     client = clients.get(idClient);
                     client.idClient = idClient;
-                    client.priority = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                    client.priority = priority;
                 } else {
                     client = new Client(idClient);
                     client.idClient = idClient;
-                    client.priority = EncodingHelpers.decodeInt(theAttributes.getValue(1));
+                    client.priority = priority;
                 }
                 clients.put(idClient, client);
 
@@ -196,18 +197,12 @@ public class QueueAmbassador extends NullFederateAmbassador {
 
             try {
                 int idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(0));
-                Checkout checkout;
-                if(checkouts.containsKey(idCheckout)) {
-                    checkout = checkouts.get(idCheckout);
-                    checkout.idCheckout = idCheckout;
-                    checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
-                } else {
+                Checkout checkout = checkouts.get(idCheckout);
+                if(checkout == null) {
                     checkout = new Checkout(idCheckout);
-                    checkout.idClient = idCheckout;
-                    checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
                 }
+                checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
                 checkouts.put(idCheckout, checkout);
-
             } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
                 //arrayIndexOutOfBounds.printStackTrace();
             }

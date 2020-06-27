@@ -24,49 +24,42 @@ public class QueueFederate {
 
     private RTIambassador rtiamb;
     private QueueAmbassador fedamb;
-    private final double timeStep           = 10.0;
+    private final double timeStep = 10.0;
     private HashMap<Integer, Queue> queues = new HashMap<>();
 
     private boolean shopOpen = false;
 
-    public void runFederate() throws RTIexception{
+    public void runFederate() throws RTIexception {
         rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
 
-        try
-        {
-            File fom = new File( "market.fed" );
-            rtiamb.createFederationExecution( "MarketFederation",
-                    fom.toURI().toURL() );
-            log( "Created Federation" );
-        }
-        catch( FederationExecutionAlreadyExists exists )
-        {
-            log( "Didn't create federation, it already existed" );
-        }
-        catch( MalformedURLException urle )
-        {
-            log( "Exception processing fom: " + urle.getMessage() );
+        try {
+            File fom = new File("market.fed");
+            rtiamb.createFederationExecution("MarketFederation",
+                    fom.toURI().toURL());
+            log("Created Federation");
+        } catch (FederationExecutionAlreadyExists exists) {
+            log("Didn't create federation, it already existed");
+        } catch (MalformedURLException urle) {
+            log("Exception processing fom: " + urle.getMessage());
             urle.printStackTrace();
             return;
         }
 
         fedamb = new QueueAmbassador();
-        rtiamb.joinFederationExecution( "QueueFederate", "MarketFederation", fedamb );
-        log( "Joined Federation as QueueFederate");
+        rtiamb.joinFederationExecution("QueueFederate", "MarketFederation", fedamb);
+        log("Joined Federation as QueueFederate");
 
-        rtiamb.registerFederationSynchronizationPoint( READY_TO_RUN, null );
+        rtiamb.registerFederationSynchronizationPoint(READY_TO_RUN, null);
 
-        while( fedamb.isAnnounced == false )
-        {
+        while (fedamb.isAnnounced == false) {
             rtiamb.tick();
         }
 
         waitForUser();
 
-        rtiamb.synchronizationPointAchieved( READY_TO_RUN );
-        log( "Achieved sync point: " +READY_TO_RUN+ ", waiting for federation..." );
-        while( fedamb.isReadyToRun == false )
-        {
+        rtiamb.synchronizationPointAchieved(READY_TO_RUN);
+        log("Achieved sync point: " + READY_TO_RUN + ", waiting for federation...");
+        while (fedamb.isReadyToRun == false) {
             rtiamb.tick();
         }
 
@@ -81,7 +74,7 @@ public class QueueFederate {
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
-                for(ExternalEvent externalEvent : fedamb.externalEvents) {
+                for (ExternalEvent externalEvent : fedamb.externalEvents) {
                     fedamb.federateTime = externalEvent.getTime();
                     switch (externalEvent.getEventType()) {
                         case SHOP_CLOSE:
@@ -104,21 +97,21 @@ public class QueueFederate {
             for (Map.Entry<Integer, Queue> entry : queues.entrySet()) {
                 Queue queue = entry.getValue();
                 Checkout checkout = fedamb.checkouts.get(queue.idCheckout);
-                if(checkout != null && checkout.idClient == -1 && !queue.clientsInQueue.isEmpty()) {
+                if (checkout != null && checkout.idClient == -1 && queue.length > 0) {
                     int idClientToGo = queue.clientsInQueue.get(0);
                     for (int idClient : queue.clientsInQueue) {
                         Client client = fedamb.clients.get(idClient);
-                        if(client != null && client.priority == 1) {
+                        if (client != null && client.priority == 1) {
                             idClientToGo = idClient;
-                            log("found client with priority=true", timeToAdvance);
+                            log("found client [" + idClient + "] with priority=true", timeToAdvance);
                             break;
                         }
                     }
-                    sendToCheckout(timeToAdvance, queue.idQueue, idClientToGo, queue.idCheckout);
+                    sendToCheckout(timeToAdvance, queue, idClientToGo);
                 }
             }
 
-            advanceTime( timeToAdvance );
+            advanceTime(timeToAdvance);
             //log( "Time Advanced to " + fedamb.federateTime );
 
             rtiamb.tick();
@@ -134,68 +127,56 @@ public class QueueFederate {
         int idQueue = registerQueueObject(idCheckout);
         Queue queue = queues.get(idQueue);
         updateHLAObject(time, queue);
-        log("open queue", time);
+        log("open queue [" + idQueue + "]", time);
     }
 
     private void joinQueue(double time, int idClient, int idQueue) throws RTIexception {
         Queue queue = queues.get(idQueue);
-        if(queue == null) {
+        if (queue == null) {
             log("queue with [" + idQueue + "] was not found");
             return;
         }
         queue.addToQueue(idClient);
         updateHLAObject(time, queue);
-        log("join queue", time);
+        log("join queue [" + idQueue + "], queue length: " + queue.length, time);
 
-        if(queue.length > 5) {
+        if (queue.length > 5) {
             sendQueueOverloadInteraction(time, idQueue);
-            log( "queue is overloaded", time);
+            log("queue [" + idQueue + "] is overloaded, queue length: " + queue.length, time);
         }
     }
 
-    private void sendToCheckout(double time, int idQueue, int idClient, int idCheckout) throws RTIexception {
-        Queue queue = queues.get(idQueue);
-        if(queue == null) {
-            log("queue with [" + idQueue + "] was not found", time);
-            return;
-        }
+    private void sendToCheckout(double time, Queue queue, int idClient) throws RTIexception {
         queue.removeFromQueue(idClient);
-        sendSendToCheckoutInteraction(time, idClient, idCheckout);
+        sendSendToCheckoutInteraction(time, idClient, queue.idCheckout);
         updateHLAObject(time, queue);
-        log("send to checkout", time);
+        log("queue [" + queue.idQueue + "] send client [" + idClient + "] to checkout [" + queue.idCheckout + "]", time);
     }
 
-    private void waitForUser()
-    {
-        log( " >>>>>>>>>> Press Enter to Continue <<<<<<<<<<" );
-        BufferedReader reader = new BufferedReader( new InputStreamReader(System.in) );
-        try
-        {
+    private void waitForUser() {
+        log(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        try {
             reader.readLine();
-        }
-        catch( Exception e )
-        {
-            log( "Error while waiting for user input: " + e.getMessage() );
+        } catch (Exception e) {
+            log("Error while waiting for user input: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    private void enableTimePolicy() throws RTIexception
-    {
-        LogicalTime currentTime = convertTime( fedamb.federateTime );
-        LogicalTimeInterval lookahead = convertInterval( fedamb.federateLookahead );
+    private void enableTimePolicy() throws RTIexception {
+        LogicalTime currentTime = convertTime(fedamb.federateTime);
+        LogicalTimeInterval lookahead = convertInterval(fedamb.federateLookahead);
 
-        this.rtiamb.enableTimeRegulation( currentTime, lookahead );
+        this.rtiamb.enableTimeRegulation(currentTime, lookahead);
 
-        while( fedamb.isRegulating == false )
-        {
+        while (fedamb.isRegulating == false) {
             rtiamb.tick();
         }
 
         this.rtiamb.enableTimeConstrained();
 
-        while( fedamb.isConstrained == false )
-        {
+        while (fedamb.isConstrained == false) {
             rtiamb.tick();
         }
     }
@@ -221,7 +202,7 @@ public class QueueFederate {
         attributes.add(idCheckoutHandle, byteIdCheckoutHandle);
 
         int lengthHandle = rtiamb.getAttributeHandle("length", classHandle);
-        byte[] byteLengthHandle = EncodingHelpers.encodeInt(queue.idCheckout);
+        byte[] byteLengthHandle = EncodingHelpers.encodeInt(queue.length);
         attributes.add(lengthHandle, byteLengthHandle);
 
         LogicalTime logicalTime = convertTime(time);
@@ -243,15 +224,15 @@ public class QueueFederate {
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.SendToCheckout");
 
         byte[] byteIdClient = EncodingHelpers.encodeInt(idClient);
-        int idClientHandle = rtiamb.getParameterHandle( "idClient", interactionHandle );
+        int idClientHandle = rtiamb.getParameterHandle("idClient", interactionHandle);
         parameters.add(idClientHandle, byteIdClient);
 
         byte[] byteIdCheckout = EncodingHelpers.encodeInt(idCheckout);
-        int idCheckoutHandle = rtiamb.getParameterHandle( "idCheckout", interactionHandle );
+        int idCheckoutHandle = rtiamb.getParameterHandle("idCheckout", interactionHandle);
         parameters.add(idCheckoutHandle, byteIdCheckout);
 
-        LogicalTime time = convertTime( timeStep );
-        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+        LogicalTime time = convertTime(timeStep);
+        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
     }
 
     private void sendQueueOverloadInteraction(double timeStep, int idQueue) throws RTIexception {
@@ -262,11 +243,11 @@ public class QueueFederate {
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
 
         byte[] byteIdQueue = EncodingHelpers.encodeInt(idQueue);
-        int idQueueHandle = rtiamb.getParameterHandle( "idQueue", interactionHandle );
+        int idQueueHandle = rtiamb.getParameterHandle("idQueue", interactionHandle);
         parameters.add(idQueueHandle, byteIdQueue);
 
-        LogicalTime time = convertTime( timeStep );
-        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+        LogicalTime time = convertTime(timeStep);
+        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
     }
 
     private void publish() throws RTIexception {
@@ -326,42 +307,37 @@ public class QueueFederate {
         rtiamb.subscribeInteractionClass(joinQueueHandle);
     }
 
-    private void advanceTime( double timestep ) throws RTIexception
-    {
+    private void advanceTime(double timestep) throws RTIexception {
         log("requesting time advance for: " + timestep);
         // request the advance
         fedamb.isAdvancing = true;
-        LogicalTime newTime = convertTime( fedamb.federateTime + timestep );
-        rtiamb.timeAdvanceRequest( newTime );
-        while( fedamb.isAdvancing )
-        {
+        LogicalTime newTime = convertTime(fedamb.federateTime + timestep);
+        rtiamb.timeAdvanceRequest(newTime);
+        while (fedamb.isAdvancing) {
             rtiamb.tick();
         }
     }
 
     private double randomTime() {
         Random r = new Random();
-        return 1 +(9 * r.nextDouble());
+        return 1 + (9 * r.nextDouble());
     }
 
-    private LogicalTime convertTime( double time )
-    {
+    private LogicalTime convertTime(double time) {
         // PORTICO SPECIFIC!!
-        return new DoubleTime( time );
+        return new DoubleTime(time);
     }
 
     /**
      * Same as for {@link #convertTime(double)}
      */
-    private LogicalTimeInterval convertInterval( double time )
-    {
+    private LogicalTimeInterval convertInterval(double time) {
         // PORTICO SPECIFIC!!
-        return new DoubleTimeInterval( time );
+        return new DoubleTimeInterval(time);
     }
 
-    private void log( String message )
-    {
-        System.out.println( "QueueFederate   : " + message );
+    private void log(String message) {
+        System.out.println("QueueFederate   : " + message);
     }
 
     private void log(String message, double time) {

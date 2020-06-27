@@ -90,7 +90,7 @@ public class ClientFederate {
             }
 
             if (shopOpen) {
-                if(ThreadLocalRandom.current().nextInt(0, 100) < 10) {
+                if (ThreadLocalRandom.current().nextInt(0, 100) < 10 && !fedamb.queues.isEmpty()) {
                     spawnNewClient(timeToAdvance);
                 }
             }
@@ -102,7 +102,7 @@ public class ClientFederate {
                 }
             }
 
-            advanceTime( timeToAdvance );
+            advanceTime(timeToAdvance);
             //log( "Time Advanced to " + fedamb.federateTime );
 
             rtiamb.tick();
@@ -151,9 +151,9 @@ public class ClientFederate {
     private void enterShortestQueue(double time, Client client) throws RTIexception {
         int shortestQueueId = -1;
         int shortestQueueLength = 0;
-        for(Map.Entry < Integer, Queue> entry : fedamb.queues.entrySet()) {
+        for (Map.Entry<Integer, Queue> entry : fedamb.queues.entrySet()) {
             Queue queue = entry.getValue();
-            if(queue.clientsInQueue.isEmpty()) {
+            if (queue.length == 0) {
                 shortestQueueId = queue.idQueue;
                 break;
             } else if (shortestQueueLength == 0 || shortestQueueLength > queue.length) {
@@ -164,7 +164,7 @@ public class ClientFederate {
         client.inQueue = true;
         updateHLAObject(time, client);
         sendJoinQueueInteraction(time, client.idClient, shortestQueueId);
-        log("client [" + client.idClient + "] is entering the shortest queue", time);
+        log("client [" + client.idClient + "] is entering the shortest queue [" + shortestQueueId + "], number of people: " + shortestQueueLength, time);
     }
 
     private void waitForUser() {
@@ -216,16 +216,16 @@ public class ClientFederate {
 
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.JoinQueue");
 
-        int idClientHandle = rtiamb.getParameterHandle( "idClient", interactionHandle );
+        int idClientHandle = rtiamb.getParameterHandle("idClient", interactionHandle);
         byte[] byteIdClient = EncodingHelpers.encodeInt(idClient);
         parameters.add(idClientHandle, byteIdClient);
 
-        int idQueueHandle = rtiamb.getParameterHandle( "idQueue", interactionHandle );
+        int idQueueHandle = rtiamb.getParameterHandle("idQueue", interactionHandle);
         byte[] byteIdQueue = EncodingHelpers.encodeInt(idQueue);
         parameters.add(idQueueHandle, byteIdQueue);
 
-        LogicalTime time = convertTime( timeStep );
-        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+        LogicalTime time = convertTime(timeStep);
+        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
     }
 
     private void advanceTime(double timeToAdvance) throws RTIexception {
@@ -322,7 +322,7 @@ public class ClientFederate {
     }
 
     private void log(String message) {
-        System.out.println("ClientFederate  : " + message );
+        System.out.println("ClientFederate  : " + message);
     }
 
     private void log(String message, double time) {

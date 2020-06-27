@@ -124,23 +124,29 @@ public class CheckoutFederate {
     }
 
     private void startCheckoutService(double time, int idCheckout, int idClient) throws RTIexception {
-        Client client = fedamb.clients.get(idClient);
-        if(client == null) {
-            log("checkout [" + idClient + "] was not found", time);
-            return;
-        }
-        if(client.hasCach == 0) {
-            log("client [" + idClient + "] does not have cash. and was rejested", time);
-            return;
-        }
 
         Checkout checkout = checkouts.get(idCheckout);
         if(checkout == null) {
             log("checkout with id: [" + idCheckout + "] was not found", time);
             return;
         }
+
+        Client client = fedamb.clients.get(idClient);
+        if(client == null) {
+            log("client [" + idClient + "] was not found", time);
+            return;
+        }
+
+        if(client.hasCach == 0) {
+            log("client [" + idClient + "] does not have cash. and was rejested", time);
+            sendEndCheckoutServiceInteraction(time, client.idClient);
+            checkout.idClient = -1;
+            updateHLAObject(time, checkout);
+            return;
+        }
+
         checkout.idClient = idClient;
-        checkout.serviceTime = ThreadLocalRandom.current().nextInt(1, 3);
+        checkout.serviceTime = ThreadLocalRandom.current().nextInt(1, 5);
         updateHLAObject(time, checkout);
         log("started checkout service", time);
     }
