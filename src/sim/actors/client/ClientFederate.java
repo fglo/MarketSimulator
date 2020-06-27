@@ -24,6 +24,7 @@ public class ClientFederate {
     private ClientAmbassador fedamb;
     private final double timeStep = 10.0;
     private HashMap<Integer, Client> clients = new HashMap<>();
+    int timeStepCounter = 0;
 
     private boolean shopOpen = false;
 
@@ -68,6 +69,7 @@ public class ClientFederate {
 
         while (fedamb.running) {
             double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
+            //log("time step: " + ++timeStepCounter, timeToAdvance);
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -151,20 +153,22 @@ public class ClientFederate {
     private void enterShortestQueue(double time, Client client) throws RTIexception {
         int shortestQueueId = -1;
         int shortestQueueLength = 0;
+        client.inQueue = true;
         for (Map.Entry<Integer, Queue> entry : fedamb.queues.entrySet()) {
             Queue queue = entry.getValue();
             if (queue.length == 0) {
                 shortestQueueId = queue.idQueue;
                 break;
-            } else if (shortestQueueLength == 0 || shortestQueueLength > queue.length) {
+            } else if (shortestQueueLength > queue.length) {
                 shortestQueueId = queue.idQueue;
                 shortestQueueLength = queue.length;
             }
         }
-        client.inQueue = true;
-        updateHLAObject(time, client);
-        sendJoinQueueInteraction(time, client.idClient, shortestQueueId);
-        log("client [" + client.idClient + "] is entering the shortest queue [" + shortestQueueId + "], number of people: " + shortestQueueLength, time);
+        if (shortestQueueId != -1) {
+            updateHLAObject(time, client);
+            sendJoinQueueInteraction(time, client.idClient, shortestQueueId);
+            log("client [" + client.idClient + "] is entering the shortest queue [" + shortestQueueId + "], number of people: " + shortestQueueLength, time);
+        }
     }
 
     private void waitForUser() {

@@ -26,6 +26,7 @@ public class QueueFederate {
     private QueueAmbassador fedamb;
     private final double timeStep = 10.0;
     private HashMap<Integer, Queue> queues = new HashMap<>();
+    int timeStepCounter = 0;
 
     private boolean shopOpen = false;
 
@@ -71,6 +72,7 @@ public class QueueFederate {
 
         while (fedamb.running) {
             double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
+            //log("time step: " + ++timeStepCounter, timeToAdvance);
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -109,6 +111,9 @@ public class QueueFederate {
                     }
                     sendToCheckout(timeToAdvance, queue, idClientToGo);
                 }
+                if(checkout.idClient != -1) {
+                    log("checkout [" + checkout.idCheckout + "] is busy", timeToAdvance);
+                }
             }
 
             advanceTime(timeToAdvance);
@@ -140,7 +145,8 @@ public class QueueFederate {
         updateHLAObject(time, queue);
         log("join queue [" + idQueue + "], queue length: " + queue.length, time);
 
-        if (queue.length > 5) {
+        if (!queue.openedNewCheckout && queue.length > 5) {
+            queue.openedNewCheckout = true;
             sendQueueOverloadInteraction(time, idQueue);
             log("queue [" + idQueue + "] is overloaded, queue length: " + queue.length, time);
         }
@@ -151,6 +157,7 @@ public class QueueFederate {
         sendSendToCheckoutInteraction(time, idClient, queue.idCheckout);
         updateHLAObject(time, queue);
         log("queue [" + queue.idQueue + "] send client [" + idClient + "] to checkout [" + queue.idCheckout + "]", time);
+        queue.openedNewCheckout = false;
     }
 
     private void waitForUser() {

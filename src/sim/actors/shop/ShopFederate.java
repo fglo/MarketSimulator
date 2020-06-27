@@ -76,7 +76,7 @@ public class ShopFederate {
 
         while (fedamb.running) {
             double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
-            timeStepCounter ++;
+            //log("time step: " + ++timeStepCounter, timeToAdvance);
 
             if(fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -123,8 +123,9 @@ public class ShopFederate {
     }
 
     private void openCheckout(double time) throws RTIexception {
-        checkoutCounter += 1;
+        checkoutCounter++;
         sendOpenCheckoutInteraction(time);
+        log("checkout opens, number of checkouts: " + checkoutCounter, time);
     }
 
     private void closeCheckout(double time) throws RTIexception {
@@ -194,7 +195,6 @@ public class ShopFederate {
 
     private void sendOpenCheckoutInteraction(double timeStep) throws RTIexception {
         LogicalTime time = convertTime( timeStep );
-        log("checkout opens", timeStep);
 
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
