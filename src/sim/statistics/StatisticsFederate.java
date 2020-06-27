@@ -143,6 +143,8 @@ public class StatisticsFederate {
 	private void shopClose() {
 		shopCloseCounter++;
 		log("shop close: " + shopCloseCounter);
+
+
 	}
 
 	private void checkoutOpen () {
@@ -256,6 +258,38 @@ public class StatisticsFederate {
 		int endCheckoutServiceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.EndCheckoutServiceHandle");
 		fedamb.endCheckoutServiceHandle = endCheckoutServiceHandle;
 		rtiamb.subscribeInteractionClass(endCheckoutServiceHandle);
+
+		int queueHandle = rtiamb.getObjectClassHandle("ObjectRoot.Queue");
+		fedamb.queueHandle = queueHandle;
+		int idQueueHandle = rtiamb.getAttributeHandle("idQueue", queueHandle);
+		int idqueueCheckoutHandle = rtiamb.getAttributeHandle("idCheckout", queueHandle);
+		int lenghtHandle = rtiamb.getAttributeHandle("length", queueHandle);
+		AttributeHandleSet queueAttributes =
+				RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
+		queueAttributes.add(idQueueHandle);
+		queueAttributes.add(idqueueCheckoutHandle);
+		queueAttributes.add(lenghtHandle);
+		rtiamb.subscribeObjectClassAttributes(queueHandle, queueAttributes);
+
+		int clientHandle = rtiamb.getObjectClassHandle("ObjectRoot.Client");
+		fedamb.clientHandle = clientHandle;
+		int idClientHandleClient = rtiamb.getAttributeHandle("idClient", clientHandle);
+		int priopityHandle = rtiamb.getAttributeHandle("priority", clientHandle);
+		AttributeHandleSet clientAttributes =
+				RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
+		clientAttributes.add(idClientHandleClient);
+		clientAttributes.add(priopityHandle);
+		rtiamb.subscribeObjectClassAttributes(clientHandle, clientAttributes);
+
+		int checkoutHandle = rtiamb.getObjectClassHandle("ObjectRoot.Checkout");
+		fedamb.checkoutHandle = checkoutHandle;
+		int idCheckoutHandle = rtiamb.getAttributeHandle("idCheckout", checkoutHandle);
+		int idClientHandleCheckout = rtiamb.getAttributeHandle("idClient", checkoutHandle);
+		AttributeHandleSet checkoutAttributes =
+				RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
+		checkoutAttributes.add(idCheckoutHandle);
+		checkoutAttributes.add(idClientHandleCheckout);
+		rtiamb.subscribeObjectClassAttributes(checkoutHandle, checkoutAttributes);
 
 	}
 
