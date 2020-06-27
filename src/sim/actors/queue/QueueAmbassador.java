@@ -8,7 +8,6 @@ import org.portico.impl.hla13.types.DoubleTime;
 import sim.HandlersHelper;
 import sim.objects.Checkout;
 import sim.objects.Client;
-import sim.objects.Queue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,9 +28,8 @@ public class QueueAmbassador extends NullFederateAmbassador {
     protected boolean running 			 = true;
 
     protected int shopCloseHandle              = 0;
-    protected int startCheckoutServiceHandle   = 0;
-    protected int endCheckoutServiceHandle     = 0;
-    protected int joinQueueHandelHandle        = 0;
+    protected int openQueueHandle = 0;
+    protected int joinQueueHandle        = 0;
 
     protected int clientHandle = 0;
     protected int checkoutHandle = 0;
@@ -121,37 +119,40 @@ public class QueueAmbassador extends NullFederateAmbassador {
             ExternalEvent event = new ExternalEvent(EventType.SHOP_CLOSE, time);
             externalEvents.add(event);
 
-            builder.append("Shop close , time=" + time);
+            builder.append("Close shop , time=" + time);
             builder.append("\n");
 
-        } else if (interactionClass == startCheckoutServiceHandle) {
-            double time = convertTime(theTime);
-            ExternalEvent event = new ExternalEvent(EventType.START_CHECKOUT, time);
-            externalEvents.add(event);
+        } else if (interactionClass == openQueueHandle) {
+            try {
+                int idCheckout = EncodingHelpers.decodeInt(theInteraction.getValue(0));
+                double time = convertTime(theTime);
+                ExternalEvent event = new ExternalEvent(EventType.OPEN_QUEUE, time);
+                event.addParameter("id_checkout", idCheckout);
+                externalEvents.add(event);
 
-            builder.append("Start checkout service, time=" + time);
-            builder.append("\n");
+                builder.append("Open queue, time=" + time);
+                builder.append(" id_checkout=").append(idCheckout);
+                builder.append("\n");
+            } catch (ArrayIndexOutOfBounds ignored) {
 
-        } else if (interactionClass == endCheckoutServiceHandle) {
-            double time = convertTime(theTime);
-            ExternalEvent event = new ExternalEvent(EventType.END_CHECKOUT, time);
-            externalEvents.add(event);
+            }
+        } else if (interactionClass == joinQueueHandle) {
+            try {
+                int idClient = EncodingHelpers.decodeInt(theInteraction.getValue(0));
+                int idQueue = EncodingHelpers.decodeInt(theInteraction.getValue(1));
+                double time = convertTime(theTime);
+                ExternalEvent event = new ExternalEvent(EventType.JOIN_QUEUE, time);
+                event.addParameter("id_client", idClient);
+                event.addParameter("id_queue", idQueue);
+                externalEvents.add(event);
 
-            builder.append("End checkout service, time=" + time);
-            builder.append("\n");
+                builder.append("Join queue, time=" + time);
+                builder.append(" id_client=").append(idClient);
+                builder.append(" id_queue=").append(idQueue);
+                builder.append("\n");
+            } catch (ArrayIndexOutOfBounds ignored) {
 
-        } else if (interactionClass == joinQueueHandelHandle) {
-            double time = convertTime(theTime);
-            ExternalEvent event = new ExternalEvent(EventType.JOIN_QUEUE, time);
-            externalEvents.add(event);
-
-            builder.append("Join queue, time=" + time);
-            builder.append("\n");
-
-        }else if(interactionClass == HandlersHelper
-                .getInteractionHandleByName("InteractionRoot.Finish")) {
-            builder.append("End of interaction has been received.");
-            running = false;
+            }
         }
 
         log(builder.toString());
@@ -223,11 +224,11 @@ public class QueueAmbassador extends NullFederateAmbassador {
     @Override
     public void discoverObjectInstance(int theObject, int theObjectClass, String objectName) throws CouldNotDiscover, ObjectClassNotKnown, FederateInternalError {
         if(theObjectClass == clientHandle) {
-            System.out.println("New client object");
             clientInstancesHandles.add(theObject);
+            log("New client object");
         } else if (theObjectClass == checkoutHandle) {
-            System.out.println("New checkout object");
             checkoutInstancesHandles.add(theObject);
+            log("New checkout object");
         }
     }
 

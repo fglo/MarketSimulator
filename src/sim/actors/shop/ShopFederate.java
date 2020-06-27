@@ -94,7 +94,7 @@ public class ShopFederate {
             if(shopStatus == false)
             {
                 openShop(timeToAdvance);
-                for (int i = 0; i < ThreadLocalRandom.current().nextInt(0, 3); i++) {
+                for (int i = 0; i < 3; i++) {
                     openCheckout(timeToAdvance);
                 }
             }
@@ -133,14 +133,8 @@ public class ShopFederate {
     }
 
     private void queueOverload(double time) throws RTIexception {
-        if(checkoutCounter < 4){
-            openCheckout(time);
-        } else {
-            log("All checkout's are already open");
-        }
+        openCheckout(time);
     }
-
-
 
     private void waitForUser()
     {

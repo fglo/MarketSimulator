@@ -109,6 +109,7 @@ public class CheckoutFederate {
     private void openCheckout(double time) throws RTIexception {
         int idCheckout = registerCheckoutObject();
         updateHLAObject(time, checkouts.get(idCheckout));
+        sendOpenQueueInteraction(time, idCheckout);
         log("opened checkout", time);
     }
 
@@ -211,6 +212,20 @@ public class CheckoutFederate {
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
     }
 
+    private void sendOpenQueueInteraction(double timeStep, int idCheckout) throws RTIexception {
+        SuppliedParameters parameters =
+                RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+
+        byte[] byteIdCheckout = EncodingHelpers.encodeInt(idCheckout);
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOpen");
+        int idCheckoutHandle = rtiamb.getParameterHandle( "idCheckout", interactionHandle );
+
+        parameters.add(idCheckoutHandle, byteIdCheckout);
+
+        LogicalTime time = convertTime( timeStep );
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+    }
+
     private void advanceTime(double timeToAdvance) throws RTIexception {
         fedamb.isAdvancing = true;
         LogicalTime newTime = convertTime(timeToAdvance);
@@ -236,6 +251,9 @@ public class CheckoutFederate {
 
         int finishCheckoutService = rtiamb.getInteractionClassHandle("InteractionRoot.FinishCheckoutService");
         rtiamb.publishInteractionClass(finishCheckoutService);
+
+        int queueOpen = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOpen");
+        rtiamb.publishInteractionClass(queueOpen);
     }
 
     private void subscribe() throws RTIexception {

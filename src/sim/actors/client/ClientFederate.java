@@ -96,7 +96,7 @@ public class ClientFederate {
             }
 
             for (Map.Entry<Integer, Client> entry : clients.entrySet()) {
-                if (--entry.getValue().shoppingTime == 0) {
+                if (--entry.getValue().shoppingTime <= 0 && !fedamb.queues.isEmpty()) {
                     enterShortestQueue(timeToAdvance, entry.getValue());
                 }
             }
@@ -151,12 +151,12 @@ public class ClientFederate {
         int shortestQueueLength = 0;
         for(Map.Entry < Integer, Queue> entry : fedamb.queues.entrySet()) {
             Queue queue = entry.getValue();
-            if(queue.clientsInQueue == 0) {
+            if(queue.clientsInQueue.isEmpty()) {
                 shortestQueueId = queue.idQueue;
                 break;
-            } else if (shortestQueueLength == 0 || shortestQueueLength > queue.clientsInQueue) {
+            } else if (shortestQueueLength == 0 || shortestQueueLength > queue.length) {
                 shortestQueueId = queue.idQueue;
-                shortestQueueLength = queue.clientsInQueue;
+                shortestQueueLength = queue.length;
             }
         }
         sendJoinQueueInteraction(time, client.idClient, shortestQueueId);
@@ -219,7 +219,7 @@ public class ClientFederate {
 
         int idQueueHandle = rtiamb.getParameterHandle( "idQueue", interactionHandle );
         byte[] byteIdQueue = EncodingHelpers.encodeInt(idClient);
-        parameters.add(idClientHandle, byteIdQueue);
+        parameters.add(idQueueHandle, byteIdQueue);
 
         LogicalTime time = convertTime( timeStep );
         rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
@@ -254,12 +254,12 @@ public class ClientFederate {
         fedamb.queueHandle = queueHandle;
         int idQueueHandle = rtiamb.getAttributeHandle("idQueue", queueHandle);
         int idCheckoutHandle = rtiamb.getAttributeHandle("idCheckout", queueHandle);
-        int clientsInQueueHandle = rtiamb.getAttributeHandle("clientsInQueue", queueHandle);
+        int lenghtHandle = rtiamb.getAttributeHandle("length", queueHandle);
         AttributeHandleSet attributes =
                 RtiFactoryFactory.getRtiFactory().createAttributeHandleSet();
         attributes.add(idQueueHandle);
         attributes.add(idCheckoutHandle);
-        attributes.add(clientsInQueueHandle);
+        attributes.add(lenghtHandle);
         rtiamb.subscribeObjectClassAttributes(queueHandle, attributes);
 
         int shopOpenHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopOpen");

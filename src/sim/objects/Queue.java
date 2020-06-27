@@ -6,10 +6,17 @@ public class Queue {
     public int idQueue;
     public int idCheckout;
     public ArrayList<Integer> clientsInQueue;
+    public int length;
 
     public Queue(int idQueue, int idCheckout) {
         this.idQueue = idQueue;
         this.idCheckout = idCheckout;
+    }
+
+    public Queue(int idQueue, int idCheckout, int length) {
+        this.idQueue = idQueue;
+        this.idCheckout = idCheckout;
+        this.length = length;
     }
 
     public void addToQueue(int idClient)

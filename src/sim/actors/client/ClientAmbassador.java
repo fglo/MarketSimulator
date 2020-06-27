@@ -156,7 +156,7 @@ public class ClientAmbassador extends NullFederateAmbassador {
                     queue = queues.get(idQueue);
                     queue.idQueue = idQueue;
                     queue.idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(1));
-                    queue.clientsInQueue = EncodingHelpers.decodeInt(theAttributes.getValue(2));
+                    queue.length = EncodingHelpers.decodeInt(theAttributes.getValue(2));
                 } else {
                     queue = new Queue(idQueue,
                             theAttributes.getAttributeHandle(1),
