@@ -9,24 +9,13 @@ import org.portico.impl.hla13.types.DoubleTime;
 import sim.objects.Checkout;
 import sim.objects.Client;
 import sim.objects.Queue;
+import sim.utils.AAmbassador;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 
-public class StatisticsAmbassador extends NullFederateAmbassador {
-
-	protected boolean running = true;
-
-    protected double federateTime        = 0.0;
-    protected double federateLookahead   = 1.0;
-    protected boolean isRegulating       = false;
-    protected boolean isConstrained      = false;
-    protected boolean isAdvancing        = false;
-
-    protected boolean isAnnounced        = false;
-    protected boolean isReadyToRun       = false;
-
+public class StatisticsAmbassador extends AAmbassador {
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
 
     protected int shopOpenHandle         = 0;
@@ -50,53 +39,7 @@ public class StatisticsAmbassador extends NullFederateAmbassador {
     protected ArrayList<Integer> checkoutInstancesHandles = new ArrayList();
     protected HashMap<Integer, Checkout> checkouts = new HashMap<>();
 
-
-
-
-    public void timeRegulationEnabled( LogicalTime theFederateTime )
-    {
-        this.federateTime = convertTime( theFederateTime );
-        this.isRegulating = true;
-    }
-
-    public void timeConstrainedEnabled( LogicalTime theFederateTime )
-    {
-        this.federateTime = convertTime( theFederateTime );
-        this.isConstrained = true;
-    }
-
-
-    public void synchronizationPointRegistrationFailed( String label )
-    {
-        log( "Failed to register sync point: " + label );
-    }
-
-    public void synchronizationPointRegistrationSucceeded( String label )
-    {
-        log( "Successfully registered sync point: " + label );
-    }
-
-    public void announceSynchronizationPoint( String label, byte[] tag )
-    {
-        log( "Synchronization point announced: " + label );
-        if( label.equals(Example13Federate.READY_TO_RUN) )
-            this.isAnnounced = true;
-    }
-
-    public void federationSynchronized( String label )
-    {
-        log( "Federation Synchronized: " + label );
-        if( label.equals(Example13Federate.READY_TO_RUN) )
-            this.isReadyToRun = true;
-    }
-
-
-	public void receiveInteraction(int interactionClass,
-			ReceivedInteraction theInteraction, byte[] tag) {
-
-		receiveInteraction(interactionClass, theInteraction, tag, null, null);
-	}
-
+    @Override
 	public void receiveInteraction(int interactionClass,
 			ReceivedInteraction theInteraction, byte[] tag,
 			LogicalTime theTime, EventRetractionHandle eventRetractionHandle) {
@@ -123,7 +66,7 @@ public class StatisticsAmbassador extends NullFederateAmbassador {
             ExternalEvent event = new ExternalEvent(EventType.SHOP_CLOSE, time);
             externalEvents.add(event);
 
-            builder.append("Shop close , time=" + time);
+            builder.append("Shop close" + time);
             builder.append("\n");
 
         } else if (interactionClass == checkoutOpenHandle) {
@@ -175,27 +118,7 @@ public class StatisticsAmbassador extends NullFederateAmbassador {
 		log(builder.toString());
 	}
 
-    public void timeAdvanceGrant( LogicalTime theTime )
-    {
-        this.federateTime = convertTime( theTime );
-        this.isAdvancing = false;
-    }
-
-    private double convertTime( LogicalTime logicalTime )
-    {
-        // PORTICO SPECIFIC!!
-        return ((DoubleTime)logicalTime).getTime();
-    }
-
-	private void log(String message) {
-		System.out.println("StatisticsAmbassador: " + message);
-	}
-
-	public void reflectAttributeValues(int theObject,
-			ReflectedAttributes theAttributes, byte[] tag) {
-		reflectAttributeValues(theObject, theAttributes, tag, null, null);
-	}
-
+	@Override
 	public void reflectAttributeValues(int theObject,
 			ReflectedAttributes theAttributes, byte[] tag, LogicalTime theTime,
 			EventRetractionHandle retractionHandle) {

@@ -39,6 +39,9 @@
       (class ShopOpen reliable timestamp TestSpace)
       (class ShopClose reliable timestamp TestSpace)
       (class CheckoutOpen reliable timestamp TestSpace)
+      (class NoClients reliable timestamp TestSpace)
+      (class QueuesEmpty reliable timestamp TestSpace)
+      (class CheckoutsClosed reliable timestamp TestSpace)
       (class QueueOpen reliable timestamp TestSpace
         (parameter idCheckout)
       )

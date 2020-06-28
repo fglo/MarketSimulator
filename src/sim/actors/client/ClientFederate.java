@@ -27,6 +27,7 @@ public class ClientFederate {
     int timeStepCounter = 0;
 
     private boolean shopOpen = false;
+    private boolean shopClosed = false;
 
     public void runFederate() throws Exception {
         rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
@@ -69,7 +70,7 @@ public class ClientFederate {
 
         while (fedamb.running) {
             double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
-            //log("time step: " + ++timeStepCounter, timeToAdvance);
+            log("time step: " + ++timeStepCounter, timeToAdvance);
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -80,7 +81,7 @@ public class ClientFederate {
                             this.openShop();
                             break;
                         case SHOP_CLOSE:
-                            this.closeShop();
+                            this.closeShop(timeToAdvance);
                             break;
                         case END_CHECKOUT:
                             this.endShopping(timeToAdvance,
@@ -91,10 +92,15 @@ public class ClientFederate {
                 fedamb.externalEvents.clear();
             }
 
-            if (shopOpen) {
-                if (ThreadLocalRandom.current().nextInt(0, 100) < 10 && !fedamb.queues.isEmpty()) {
-                    spawnNewClient(timeToAdvance);
-                }
+            if (shopOpen && ThreadLocalRandom.current().nextInt(0, 100) < 10 && !fedamb.queues.isEmpty()) {
+                spawnNewClient(timeToAdvance);
+            }
+
+            if(shopClosed && clients.isEmpty()) {
+                log("no more clients", timeToAdvance);
+                sendNoClientsInteraction(timeToAdvance);
+                advanceTime(timeToAdvance);
+                break;
             }
 
             for (Map.Entry<Integer, Client> entry : clients.entrySet()) {
@@ -105,37 +111,23 @@ public class ClientFederate {
             }
 
             advanceTime(timeToAdvance);
-            //log( "Time Advanced to " + fedamb.federateTime );
-
             rtiamb.tick();
         }
 
-//		rtiamb.resignFederationExecution( ResignAction.NO_ACTION );
-//		log( "Resigned from Federation" );
-//
-//		try
-//		{
-//			rtiamb.destroyFederationExecution( "MarketFederation" );
-//			log( "Destroyed Federation" );
-//		}
-//		catch( FederationExecutionDoesNotExist dne )
-//		{
-//			log( "No need to destroy federation, it doesn't exist" );
-//		}
-//		catch( FederatesCurrentlyJoined fcj )
-//		{
-//			log( "Didn't destroy federation, federates still joined" );
-//		}
+		rtiamb.resignFederationExecution( ResignAction.NO_ACTION );
+		log( "resigned from Federation" );
     }
 
     private void openShop() {
         log("shop is open");
         shopOpen = true;
+        shopClosed = false;
     }
 
-    private void closeShop() {
-        log("shop is closing");
+    private void closeShop(double time) {
+        log("shop is closing", time);
         shopOpen = false;
+        shopClosed = true;
     }
 
     private void endShopping(double time, int idClient) throws RTIexception {
@@ -154,8 +146,9 @@ public class ClientFederate {
         int shortestQueueId = -1;
         int shortestQueueLength = 0;
         client.inQueue = true;
+        Queue queue = null;
         for (Map.Entry<Integer, Queue> entry : fedamb.queues.entrySet()) {
-            Queue queue = entry.getValue();
+            queue = entry.getValue();
             if (queue.length == 0) {
                 shortestQueueId = queue.idQueue;
                 break;
@@ -164,7 +157,10 @@ public class ClientFederate {
                 shortestQueueLength = queue.length;
             }
         }
-        if (shortestQueueId != -1) {
+        if (shortestQueueId != -1 && queue != null) {
+            queue.length++;
+            fedamb.queues.put(queue.idQueue, queue);
+
             updateHLAObject(time, client);
             sendJoinQueueInteraction(time, client.idClient, shortestQueueId);
             log("client [" + client.idClient + "] is entering the shortest queue [" + shortestQueueId + "], number of people: " + shortestQueueLength, time);
@@ -232,6 +228,16 @@ public class ClientFederate {
         rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
     }
 
+    private void sendNoClientsInteraction(double timeStep) throws RTIexception {
+        SuppliedParameters parameters =
+                RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.NolCients");
+
+        LogicalTime time = convertTime(timeStep);
+        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
+    }
+
     private void advanceTime(double timeToAdvance) throws RTIexception {
         fedamb.isAdvancing = true;
         LogicalTime newTime = convertTime(timeToAdvance);
@@ -254,6 +260,9 @@ public class ClientFederate {
 
         int joinQueue = rtiamb.getInteractionClassHandle("InteractionRoot.JoinQueue");
         rtiamb.publishInteractionClass(joinQueue);
+
+        int noClientsQueue = rtiamb.getInteractionClassHandle("InteractionRoot.NoClients");
+        rtiamb.publishInteractionClass(noClientsQueue);
     }
 
     private void subscribe() throws RTIexception {

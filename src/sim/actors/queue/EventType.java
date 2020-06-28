@@ -5,6 +5,6 @@ import sim.utils.IEventType;
 enum EventType implements IEventType {
     SHOP_CLOSE,
     OPEN_QUEUE,
-    END_CHECKOUT,
-    JOIN_QUEUE
+    JOIN_QUEUE,
+    NO_CLIENTS
 }

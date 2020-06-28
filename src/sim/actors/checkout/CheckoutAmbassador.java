@@ -8,102 +8,25 @@ import org.portico.impl.hla13.types.DoubleTime;
 import sim.HandlersHelper;
 import sim.objects.Checkout;
 import sim.objects.Client;
+import sim.utils.AAmbassador;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 
-public class CheckoutAmbassador extends NullFederateAmbassador {
-
-    //----------------------------------------------------------
-    //                    STATIC VARIABLES
-    //----------------------------------------------------------
-
-    //----------------------------------------------------------
-    //                   INSTANCE VARIABLES
-    //----------------------------------------------------------
-    // these variables are accessible in the package
-    protected double federateTime = 0.0;
-    protected double federateLookahead = 1.0;
-
-    protected boolean isRegulating = false;
-    protected boolean isConstrained = false;
-    protected boolean isAdvancing = false;
-
-    protected boolean isAnnounced = false;
-    protected boolean isReadyToRun = false;
-
-    protected boolean running = true;
+public class CheckoutAmbassador extends AAmbassador {
+    protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
 
     protected int checkoutOpenHandle = 0;
     protected int shopCloseHandle = 0;
     protected int sendToCheckoutHandle = 0;
+    protected int noClientsHandle = 0;
 
     protected int clientHandle = 0;
-
     protected ArrayList<Integer> clientInstancesHandles = new ArrayList();
-
-    protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
     protected HashMap<Integer, Client> clients = new HashMap<>();
 
-    public void timeRegulationEnabled( LogicalTime theFederateTime ) {
-        this.federateTime = convertTime( theFederateTime );
-        this.isRegulating = true;
-    }
-
-    public void timeConstrainedEnabled( LogicalTime theFederateTime ) {
-        this.federateTime = convertTime( theFederateTime );
-        this.isConstrained = true;
-    }
-
-    public void timeAdvanceGrant( LogicalTime theTime ) {
-        this.federateTime = convertTime( theTime );
-        this.isAdvancing = false;
-    }
-
-    public void synchronizationPointRegistrationFailed( String label ) {
-        log( "Failed to register sync point: " + label );
-    }
-
-    public void synchronizationPointRegistrationSucceeded( String label ) {
-        log( "Successfully registered sync point: " + label );
-    }
-
-    public void announceSynchronizationPoint( String label, byte[] tag ) {
-        log( "Synchronization point announced: " + label );
-        if( label.equals(Example13Federate.READY_TO_RUN) )
-            this.isAnnounced = true;
-    }
-
-    public void federationSynchronized( String label ) {
-        log( "Federation Synchronized: " + label );
-        if( label.equals(Example13Federate.READY_TO_RUN) )
-            this.isReadyToRun = true;
-    }
-
-    private double convertTime( LogicalTime logicalTime ) {
-        // PORTICO SPECIFIC!!
-        return ((DoubleTime)logicalTime).getTime();
-    }
-
-    private void log(String message) {
-        System.out.println("CheckoutAmbassador: " + message);
-    }
-
-    private void log(String message, double time) {
-        System.out.println("CheckoutAmbassador: " + message + ", time: " + time);
-    }
-
-    ///LOGIC
-    public void receiveInteraction(int interactionClass,
-                                   ReceivedInteraction theInteraction,
-                                   byte[] tag) {
-        // just pass it on to the other method for printing purposes
-        // passing null as the time will let the other method know it
-        // it from us, not from the RTI
-        receiveInteraction(interactionClass, theInteraction, tag, null, null);
-    }
-
+    @Override
     public void receiveInteraction(int interactionClass,
                                    ReceivedInteraction theInteraction,
                                    byte[] tag,
@@ -137,14 +60,13 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
             } catch (ArrayIndexOutOfBounds ignored) {
 
             }
+        } else if (interactionClass == noClientsHandle) {
+            ExternalEvent event = new ExternalEvent(EventType.NO_CLIENTS, time);
+            externalEvents.add(event);
+
+            builder.append("NoClients");
         }
         log(builder.toString(), time);
-    }
-
-    @Override
-    public void reflectAttributeValues(int theObject,
-                                       ReflectedAttributes theAttributes, byte[] tag) {
-        reflectAttributeValues(theObject, theAttributes, tag, null, null);
     }
 
     @Override
@@ -185,12 +107,6 @@ public class CheckoutAmbassador extends NullFederateAmbassador {
             clientInstancesHandles.add(theObject);
             log("new client object");
         }
-    }
-
-    @Override
-    public void removeObjectInstance( int theObject, byte[] userSuppliedTag )
-    {
-        removeObjectInstance(theObject, userSuppliedTag, null, null);
     }
 
     @Override

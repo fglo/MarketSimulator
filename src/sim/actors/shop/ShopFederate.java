@@ -11,7 +11,6 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Created by Michal on 2016-04-27.
@@ -25,9 +24,11 @@ public class ShopFederate {
     private final double timeStep           = 10.0;
     private HashMap<Integer, Integer> shopHlaHandles;
     private int checkoutCounter = 0;
-    private boolean shopStatus = false;
     int timeStepCounter = 0;
 
+    private boolean shopOpen = false;
+    private boolean queuesEmpty = false;
+    private boolean checkoutsClosed = false;
 
     public void runFederate() throws RTIexception {
         rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
@@ -76,8 +77,7 @@ public class ShopFederate {
 
         while (fedamb.running) {
             double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
-            timeStepCounter++;
-            //log("time step: " + timeStepCounter, timeToAdvance);
+            log("time step: " + ++timeStepCounter, timeToAdvance);
 
             if(fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -87,38 +87,68 @@ public class ShopFederate {
                         case QUEUE_OVERLOAD:
                             this.queueOverload(timeToAdvance);
                             break;
+                        case CHECKOUTS_CLOSED:
+                            checkoutsClosed = true;
+                            break;
+                        case QUEUES_EMPTY:
+                            queuesEmpty = true;
+                            break;
                     }
                 }
                 fedamb.externalEvents.clear();
             }
 
-            if(shopStatus == false)
+            if(!shopOpen && timeToAdvance < 1024)
             {
                 openShop(timeToAdvance);
                 for (int i = 0; i < 3; i++) {
                     openCheckout(timeToAdvance);
                 }
             }
-            if(timeStepCounter == 2000)
+
+            if(shopOpen && timeToAdvance >= 1024)
             {
                 closeShop(timeToAdvance);
             }
 
-            advanceTime( timeToAdvance );
-            //log( "Time Advanced to " + fedamb.federateTime );
+            if(checkoutsClosed && queuesEmpty) {
+                closeShop(timeToAdvance);
+                advanceTime(timeToAdvance);
+                break;
+            }
 
+            advanceTime( timeToAdvance );
             rtiamb.tick();
+        }
+
+        rtiamb.resignFederationExecution( ResignAction.NO_ACTION );
+        log( "Resigned from Federation" );
+
+        try
+        {
+            rtiamb.destroyFederationExecution( "MarketFederation" );
+            log( "Destroyed Federation" );
+        }
+        catch( FederationExecutionDoesNotExist dne )
+        {
+            log( "No need to destroy federation, it doesn't exist" );
+        }
+        catch( FederatesCurrentlyJoined fcj )
+        {
+            log( "Didn't destroy federation, federates still joined" );
         }
     }
 
     private void openShop(double time) throws RTIexception {
-        shopStatus = true;
+        shopOpen = true;
         sendOpenShopInteraction(time);
+        log("opening the shop");
     }
 
     private void closeShop(double time) throws RTIexception {
-        shopStatus = false;
+        shopOpen = false;
         sendCloseShopInteraction(time);
+        log("closing the shop");
     }
 
     private void openCheckout(double time) throws RTIexception {
@@ -210,9 +240,17 @@ public class ShopFederate {
         rtiamb.publishInteractionClass(CheckoutOpen);
 
         ////    SUBSCRIBE
-        int queueOverloadHanle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
-        fedamb.queueOverloadHandle = queueOverloadHanle;
-        rtiamb.subscribeInteractionClass(queueOverloadHanle);
+        int queueOverloadHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
+        fedamb.queueOverloadHandle = queueOverloadHandle;
+        rtiamb.subscribeInteractionClass(queueOverloadHandle);
+
+        int checkoutsClosedHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutsClosed");
+        fedamb.checkoutsClosedHandle = checkoutsClosedHandle;
+        rtiamb.subscribeInteractionClass(checkoutsClosedHandle);
+
+        int queuesEmptyHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueuesEmpty");
+        fedamb.queuesEmptyHandle = queuesEmptyHandle;
+        rtiamb.subscribeInteractionClass(queuesEmptyHandle);
     }
 
     private void advanceTime( double timestep ) throws RTIexception {

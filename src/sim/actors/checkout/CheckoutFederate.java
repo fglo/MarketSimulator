@@ -8,6 +8,7 @@ import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
 import sim.objects.Checkout;
 import sim.objects.Client;
+import sim.objects.Queue;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -27,6 +28,9 @@ public class CheckoutFederate {
     private final double timeStep = 10.0;
     private HashMap<Integer, Checkout> checkouts = new HashMap<>();
     int timeStepCounter = 0;
+
+    private boolean shopOpen = false;
+    private boolean noClients = false;
 
     public void runFederate() throws Exception {
 
@@ -70,7 +74,7 @@ public class CheckoutFederate {
 
         while (fedamb.running) {
             double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
-            //log("time step: " + ++timeStepCounter, timeToAdvance);
+            log("time step: " + ++timeStepCounter, timeToAdvance);
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -81,16 +85,29 @@ public class CheckoutFederate {
                             this.openCheckout(timeToAdvance);
                             break;
                         case SHOP_CLOSE:
-                            this.closeShop(timeToAdvance);
+                            log("shop is closing", timeToAdvance);
+                            shopOpen = false;
                             break;
                         case SEND_TO_CHECKOUT:
                             this.startCheckoutService(timeToAdvance,
                                     externalEvent.getParameter("id_checkout"),
                                     externalEvent.getParameter("id_client"));
                             break;
+                        case NO_CLIENTS:
+                            noClients = true;
+                            break;
                     }
                 }
                 fedamb.externalEvents.clear();
+            }
+
+            if (!shopOpen && noClients) {
+                for (Map.Entry<Integer, Checkout> entry : checkouts.entrySet()) {
+                    removeHLAObject(timeToAdvance, entry.getValue().idCheckout);
+                }
+                sendCheckoutsClosedInteraction(timeToAdvance);
+                advanceTime(timeToAdvance);
+                break;
             }
 
             for (Map.Entry<Integer, Checkout> entry : checkouts.entrySet()) {
@@ -101,10 +118,11 @@ public class CheckoutFederate {
             }
 
             advanceTime(timeToAdvance);
-            //log( "Time Advanced to " + fedamb.federateTime );
-
             rtiamb.tick();
         }
+
+        rtiamb.resignFederationExecution(ResignAction.NO_ACTION);
+        log("resigned from Federation");
     }
 
     private void openCheckout(double time) throws RTIexception {
@@ -117,9 +135,6 @@ public class CheckoutFederate {
     private void closeCheckout(double time, int idCheckout) throws RTIexception {
         removeHLAObject(time, idCheckout);
         log("closed checkout", time);
-    }
-
-    private void closeShop(double time) {
     }
 
     private void startCheckoutService(double time, int idCheckout, int idClient) throws RTIexception {
@@ -231,6 +246,16 @@ public class CheckoutFederate {
         rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
     }
 
+    private void sendCheckoutsClosedInteraction(double timeStep) throws RTIexception {
+        SuppliedParameters parameters =
+                RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
+
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutsClosed");
+
+        LogicalTime time = convertTime(timeStep);
+        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
+    }
+
     private void advanceTime(double timeToAdvance) throws RTIexception {
         fedamb.isAdvancing = true;
         LogicalTime newTime = convertTime(timeToAdvance);
@@ -256,6 +281,9 @@ public class CheckoutFederate {
 
         int queueOpen = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOpen");
         rtiamb.publishInteractionClass(queueOpen);
+
+        int checkoutsClosed = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutsClosed");
+        rtiamb.publishInteractionClass(checkoutsClosed);
     }
 
     private void subscribe() throws RTIexception {
@@ -282,6 +310,10 @@ public class CheckoutFederate {
         int sendToCheckoutHandle = rtiamb.getInteractionClassHandle("InteractionRoot.SendToCheckout");
         fedamb.sendToCheckoutHandle = sendToCheckoutHandle;
         rtiamb.subscribeInteractionClass(sendToCheckoutHandle);
+
+        int noClientsHandle = rtiamb.getInteractionClassHandle("InteractionRoot.NoClients");
+        fedamb.noClientsHandle = noClientsHandle;
+        rtiamb.subscribeInteractionClass(noClientsHandle);
     }
 
     private void enableTimePolicy() throws RTIexception {

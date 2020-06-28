@@ -1,106 +1,22 @@
 package sim.actors.shop;
 
-import hla.rti.EventRetractionHandle;
-import hla.rti.LogicalTime;
-import hla.rti.ReceivedInteraction;
+import hla.rti.*;
 import hla.rti.jlc.NullFederateAmbassador;
 import sim.Example13Federate;
 import org.portico.impl.hla13.types.DoubleTime;
 import sim.HandlersHelper;
+import sim.utils.AAmbassador;
 
 import java.util.ArrayList;
 
-/**
- * Created by Michal on 2016-04-27.
- */
-public class ShopAmbassador extends NullFederateAmbassador {
-
-    protected double federateTime        = 0.0;
-    protected double federateLookahead   = 1.0;
-
-    protected boolean isRegulating       = false;
-    protected boolean isConstrained      = false;
-    protected boolean isAdvancing        = false;
-
-    protected boolean isAnnounced        = false;
-    protected boolean isReadyToRun       = false;
-
-    protected boolean running 			 = true;
-
-    protected int queueOverloadHandle = 0;
-
+public class ShopAmbassador extends AAmbassador {
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
 
+    protected int queueOverloadHandle = 0;
+    protected int checkoutsClosedHandle = 0;
+    protected int queuesEmptyHandle = 0;
 
-    private double convertTime( LogicalTime logicalTime )
-    {
-        // PORTICO SPECIFIC!!
-        return ((DoubleTime)logicalTime).getTime();
-    }
-
-    private void log( String message )
-    {
-        System.out.println( "ShopAmbassador: " + message );
-    }
-
-    private void log(String message, double time) {
-        System.out.println("ShopAmbassador: " + message + ", time: " + time);
-    }
-
-    public void synchronizationPointRegistrationFailed( String label )
-    {
-        log( "Failed to register sync point: " + label );
-    }
-
-    public void synchronizationPointRegistrationSucceeded( String label )
-    {
-        log( "Successfully registered sync point: " + label );
-    }
-
-    public void announceSynchronizationPoint( String label, byte[] tag )
-    {
-        log( "Synchronization point announced: " + label );
-        if( label.equals(Example13Federate.READY_TO_RUN) )
-            this.isAnnounced = true;
-    }
-
-    public void federationSynchronized( String label )
-    {
-        log( "Federation Synchronized: " + label );
-        if( label.equals(Example13Federate.READY_TO_RUN) )
-            this.isReadyToRun = true;
-    }
-
-    /**
-     * The RTI has informed us that time regulation is now enabled.
-     */
-    public void timeRegulationEnabled( LogicalTime theFederateTime )
-    {
-        this.federateTime = convertTime( theFederateTime );
-        this.isRegulating = true;
-    }
-
-    public void timeConstrainedEnabled( LogicalTime theFederateTime )
-    {
-        this.federateTime = convertTime( theFederateTime );
-        this.isConstrained = true;
-    }
-
-    public void timeAdvanceGrant( LogicalTime theTime )
-    {
-        this.federateTime = convertTime( theTime );
-        this.isAdvancing = false;
-    }
-
-    public void receiveInteraction(int interactionClass,
-                                   ReceivedInteraction theInteraction,
-                                   byte[] tag) {
-        // just pass it on to the other method for printing purposes
-        // passing null as the time will let the other method know it
-        // it from us, not from the RTI
-        receiveInteraction(interactionClass, theInteraction, tag, null, null);
-    }
-
+    @Override
     public void receiveInteraction(int interactionClass,
                                    ReceivedInteraction theInteraction,
                                    byte[] tag,
@@ -115,9 +31,42 @@ public class ShopAmbassador extends NullFederateAmbassador {
             externalEvents.add(event);
 
             builder.append("QueueOverload");
+        } else if (interactionClass == checkoutsClosedHandle) {
+            ExternalEvent event = new ExternalEvent(EventType.CHECKOUTS_CLOSED, time);
+            externalEvents.add(event);
+
+            builder.append("CheckoutsClosed");
+        } else if (interactionClass == queuesEmptyHandle) {
+            ExternalEvent event = new ExternalEvent(EventType.QUEUES_EMPTY, time);
+            externalEvents.add(event);
+
+            builder.append("QueuesEmpty");
         }
 
         log(builder.toString(), time);
     }
 
+    @Override
+    public void reflectAttributeValues(int theObject,
+                                       ReflectedAttributes theAttributes,
+                                       byte[] tag,
+                                       LogicalTime theTime,
+                                       EventRetractionHandle retractionHandle) {
+
+    }
+
+    @Override
+    public void discoverObjectInstance(int theObject,
+                                       int theObjectClass,
+                                       String objectName) throws CouldNotDiscover, ObjectClassNotKnown, FederateInternalError {
+
+    }
+
+    @Override
+    public void removeObjectInstance(int theObject,
+                                     byte[] userSuppliedTag,
+                                     LogicalTime theTime,
+                                     EventRetractionHandle retractionHandle) {
+
+    }
 }
