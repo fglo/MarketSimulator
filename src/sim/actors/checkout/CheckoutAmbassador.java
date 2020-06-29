@@ -83,7 +83,8 @@ public class CheckoutAmbassador extends AAmbassador {
         double time = convertTime(theTime);
 
         if(clientInstancesHandles.contains(theObject)) {
-            builder.append("handle=" + theObject);
+            builder.append("client");
+            builder.append(", handle=" + theObject);
             builder.append(", attributeCount=" + theAttributes.size());
 
             try {
@@ -99,6 +100,8 @@ public class CheckoutAmbassador extends AAmbassador {
                     client.priority = EncodingHelpers.decodeInt(theAttributes.getValue(1));
                 }
                 clients.put(idClient, client);
+                builder.append(", idClient=" + client.idClient);
+                builder.append(", priority=" + client.priority);
 
             } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
                 //arrayIndexOutOfBounds.printStackTrace();

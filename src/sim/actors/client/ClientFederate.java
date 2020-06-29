@@ -26,6 +26,8 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
     private boolean shopClosed = false;
     private boolean finish = false;
 
+    private int maxNumberOfClientsAtOneTime = 0;
+
     @Override
     public void runFederate() throws RTIexception {
         super.runFederate();
@@ -68,15 +70,14 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
             }
 
             if(finish) {
+                log("max number of clients int the shop at one time: " + maxNumberOfClientsAtOneTime);
                 break;
             }
 
             if (doorOpen && shopOpen && ThreadLocalRandom.current().nextInt(0, 100) < 101 && !fedamb.queues.isEmpty()) {
-                spawnNewClient();
-                spawnNewClient();
-                spawnNewClient();
-                spawnNewClient();
-                spawnNewClient();
+                for(int i = 0; i < ThreadLocalRandom.current().nextInt(2, 6); i++) {
+                    spawnNewClient();
+                }
             }
 
             if(shopClosed && clients.isEmpty()) {
@@ -138,6 +139,9 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
         client.startShopping();
         updateHLAObject(client);
         log("client [" + idClient + "] entered the shop, clients in the shop: " + clients.size(), fedamb.federateTime);
+        if(maxNumberOfClientsAtOneTime < clients.size()) {
+            maxNumberOfClientsAtOneTime = clients.size();
+        }
     }
 
     private void rejectClient(int idClient) throws RTIexception {

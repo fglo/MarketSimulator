@@ -53,7 +53,7 @@ public class ShopFederate extends AFederate<ShopAmbassador> {
             if(!shopOpen && fedamb.federateTime < 2048)
             {
                 openShop();
-                for (int i = 0; i < 3; i++) {
+                for (int i = 0; i < 9; i++) {
                     openCheckout();
                 }
             }

@@ -28,6 +28,8 @@ public class CheckoutFederate extends AFederate<CheckoutAmbassador> {
     private boolean noClients = false;
     private boolean finish = false;
 
+    private int numberOfCheckoutsAtTheEnd = 0;
+
     @Override
     public void runFederate() throws RTIexception {
         super.runFederate();
@@ -64,6 +66,7 @@ public class CheckoutFederate extends AFederate<CheckoutAmbassador> {
             }
 
             if(finish) {
+                log("number of checkouts at the end: " + numberOfCheckoutsAtTheEnd);
                 break;
             }
 
@@ -71,7 +74,9 @@ public class CheckoutFederate extends AFederate<CheckoutAmbassador> {
                 for (Map.Entry<Integer, Checkout> entry : checkouts.entrySet()) {
                     removeHLAObject(entry.getValue().idCheckout);
                 }
-                log("number of checkouts at the end: " + checkouts.size(), fedamb.federateTime);
+                if(!checkouts.isEmpty()) {
+                    numberOfCheckoutsAtTheEnd = checkouts.size();
+                }
                 checkouts.clear();
                 sendCheckoutsClosedInteraction();
             }

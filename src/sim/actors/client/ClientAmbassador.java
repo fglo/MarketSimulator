@@ -111,7 +111,8 @@ public class ClientAmbassador extends AAmbassador {
         double time = convertTime(theTime);
 
         if (queueInstancesHandles.contains(theObject)) {
-            builder.append("handle=" + theObject);
+            builder.append("queue");
+            builder.append(", handle=" + theObject);
             builder.append(", attributeCount=" + theAttributes.size());
 
             try {
@@ -128,6 +129,9 @@ public class ClientAmbassador extends AAmbassador {
                     queue = new Queue(idQueue, idCheckout, length);
                 }
                 queues.put(idQueue, queue);
+                builder.append(", idQueue=" + idQueue);
+                builder.append(", idCheckout=" + idCheckout);
+                builder.append(", length=" + length);
 
             } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
                 //arrayIndexOutOfBounds.printStackTrace();

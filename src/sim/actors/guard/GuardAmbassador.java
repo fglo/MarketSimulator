@@ -44,7 +44,8 @@ public class GuardAmbassador extends AAmbassador {
         double time = convertTime(theTime);
 
         if(clientInstancesHandles.contains(theObject)) {
-            builder.append("handle=" + theObject);
+            builder.append("client");
+            builder.append(", handle=" + theObject);
             builder.append(", attributeCount=" + theAttributes.size());
 
             try {
@@ -64,6 +65,8 @@ public class GuardAmbassador extends AAmbassador {
                     externalEvents.add(event);
                 }
                 clients.put(idClient, client);
+                builder.append(", idClient=" + client.idClient);
+                builder.append(", priority=" + client.priority);
 
             } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
                 //arrayIndexOutOfBounds.printStackTrace();

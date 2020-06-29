@@ -28,6 +28,8 @@ public class QueueFederate extends AFederate<QueueAmbassador> {
     private boolean noClients = false;
     private boolean finish = false;
 
+    private int maxPeopleInQueue = 0;
+
     @Override
     public void runFederate() throws RTIexception {
         super.runFederate();
@@ -66,13 +68,15 @@ public class QueueFederate extends AFederate<QueueAmbassador> {
                 fedamb.externalEvents.clear();
             }
 
-            if(finish) {
+            if (finish) {
                 break;
             }
 
             if (!shopOpen && noClients) {
                 for (Map.Entry<Integer, Queue> entry : queues.entrySet()) {
-                    removeHLAObject(entry.getValue().idQueue);
+                    Queue queue = entry.getValue();
+                    log("max length of queue [" + queue.idQueue + "] was: " + queue.getMaxLength());
+                    removeHLAObject(queue.idQueue);
                 }
                 queues.clear();
                 sendQueuesEmptyInteraction();

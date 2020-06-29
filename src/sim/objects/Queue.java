@@ -7,6 +7,8 @@ public class Queue {
     public int idCheckout;
     public int length;
 
+    private int maxLength = 0;
+
     public boolean isCheckoutBusy = false;
 
     public boolean openedNewCheckout = false;
@@ -28,11 +30,18 @@ public class Queue {
     {
         clientsInQueue.add(idClient);
         length = clientsInQueue.size();
+        if(length > maxLength) {
+            maxLength = length;
+        }
     }
 
     public void removeFromQueue(int idClient)
     {
         clientsInQueue.remove((Integer)idClient);
         length = clientsInQueue.size();
+    }
+
+    public int getMaxLength() {
+        return maxLength;
     }
 }
