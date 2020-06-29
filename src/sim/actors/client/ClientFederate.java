@@ -22,35 +22,13 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
     private HashMap<Integer, Client> clients = new HashMap<>();
 
     private boolean shopOpen = false;
+    private boolean doorOpen = false;
     private boolean shopClosed = false;
     private boolean finish = false;
 
     @Override
     public void runFederate() throws RTIexception {
         super.runFederate();
-
-        fedamb = new ClientAmbassador();
-        rtiamb.joinFederationExecution("ClientFederate", "MarketFederation", fedamb);
-        log("Joined Federation as " + "ClientFederate");
-
-        rtiamb.registerFederationSynchronizationPoint(READY_TO_RUN, null);
-
-        while (fedamb.isAnnounced == false) {
-            rtiamb.tick();
-        }
-
-        waitForUser();
-
-        rtiamb.synchronizationPointAchieved(READY_TO_RUN);
-        log("Achieved sync point: " + READY_TO_RUN + ", waiting for federation...");
-        while (fedamb.isReadyToRun == false) {
-            rtiamb.tick();
-        }
-
-        enableTimePolicy();
-
-        publish();
-        subscribe();
 
         while (fedamb.running) {
             advanceTime(timeStep);
@@ -72,6 +50,18 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
                         case FINISH:
                             finish = true;
                             break;
+                        case LET_CLIENT_IN:
+                            this.letClientIn(externalEvent.getParameter("id_client"));
+                            break;
+                        case REJECT_CLIENT:
+                            this.rejectClient(externalEvent.getParameter("id_client"));
+                            break;
+                        case OPEN_DOOR:
+                            doorOpen = true;
+                            break;
+                        case CLOSE_DOOR:
+                            doorOpen = false;
+                            break;
                     }
                 }
                 fedamb.externalEvents.clear();
@@ -81,7 +71,10 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
                 break;
             }
 
-            if (shopOpen && ThreadLocalRandom.current().nextInt(0, 100) < 101 && !fedamb.queues.isEmpty()) {
+            if (doorOpen && shopOpen && ThreadLocalRandom.current().nextInt(0, 100) < 101 && !fedamb.queues.isEmpty()) {
+                spawnNewClient();
+                spawnNewClient();
+                spawnNewClient();
                 spawnNewClient();
                 spawnNewClient();
             }
@@ -93,11 +86,13 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
 
             for (Map.Entry<Integer, Client> entry : clients.entrySet()) {
                 Client client = entry.getValue();
-                client.shoppingTime--;
-                if (!client.inQueue && client.shoppingTime <= 0 && !fedamb.queues.isEmpty()) {
-                    enterShortestQueue(client);
+                if(client.shoppingTime > 0) {
+                    client.shoppingTime--;
+                    if (!client.inQueue && client.shoppingTime <= 0 && !fedamb.queues.isEmpty()) {
+                        enterShortestQueue(client);
+                    }
+                    clients.put(client.idClient, client);
                 }
-                clients.put(client.idClient, client);
             }
 
             rtiamb.tick();
@@ -107,10 +102,16 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
 		log( "resigned from Federation" );
     }
 
+    @Override
+    protected ClientAmbassador getNewFedAmbInstance() {
+        return new ClientAmbassador();
+    }
+
     private void openShop() {
         log("shop is open");
         shopOpen = true;
         shopClosed = false;
+        doorOpen = true;
     }
 
     private void closeShop() {
@@ -130,6 +131,19 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
         Client client = clients.get(idClient);
         updateHLAObject(client);
         log("a client [" + idClient + "] enter the shop", fedamb.federateTime);
+    }
+
+    private void letClientIn(int idClient) throws RTIexception {
+        Client client = clients.get(idClient);
+        client.startShopping();
+        updateHLAObject(client);
+        log("client [" + idClient + "] entered the shop, clients in the shop: " + clients.size(), fedamb.federateTime);
+    }
+
+    private void rejectClient(int idClient) throws RTIexception {
+        removeHLAObject(idClient);
+        clients.remove(idClient);
+        log("client [" + idClient + "] was rejected", fedamb.federateTime);
     }
 
     private void enterShortestQueue(Client client) throws RTIexception {
@@ -258,6 +272,22 @@ public class ClientFederate extends AFederate<ClientAmbassador> {
         int finishHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Finish");
         fedamb.finishHandle = finishHandle;
         rtiamb.subscribeInteractionClass(finishHandle);
+
+        int letClientInHandle = rtiamb.getInteractionClassHandle("InteractionRoot.LetClientIn");
+        fedamb.letClientInHandle = letClientInHandle;
+        rtiamb.subscribeInteractionClass(letClientInHandle);
+
+        int rejectClientHandle = rtiamb.getInteractionClassHandle("InteractionRoot.RejectClient");
+        fedamb.rejectClientHandle = rejectClientHandle;
+        rtiamb.subscribeInteractionClass(rejectClientHandle);
+
+        int openDoorHandle = rtiamb.getInteractionClassHandle("InteractionRoot.OpenDoor");
+        fedamb.openDoorHandle = openDoorHandle;
+        rtiamb.subscribeInteractionClass(openDoorHandle);
+
+        int closeDoorHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CloseDoor");
+        fedamb.closeDoorHandle = closeDoorHandle;
+        rtiamb.subscribeInteractionClass(closeDoorHandle);
     }
 
     public static void main(String[] args) {

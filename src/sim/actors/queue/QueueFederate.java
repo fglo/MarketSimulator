@@ -32,30 +32,6 @@ public class QueueFederate extends AFederate<QueueAmbassador> {
     public void runFederate() throws RTIexception {
         super.runFederate();
 
-        fedamb = new QueueAmbassador();
-        rtiamb.joinFederationExecution("QueueFederate", "MarketFederation", fedamb);
-        log("Joined Federation as QueueFederate");
-
-        rtiamb.registerFederationSynchronizationPoint(READY_TO_RUN, null);
-
-        while (fedamb.isAnnounced == false) {
-            rtiamb.tick();
-        }
-
-        waitForUser();
-
-        rtiamb.synchronizationPointAchieved(READY_TO_RUN);
-        log("Achieved sync point: " + READY_TO_RUN + ", waiting for federation...");
-        while (fedamb.isReadyToRun == false) {
-            rtiamb.tick();
-        }
-
-        enableTimePolicy();
-
-        publish();
-
-        subscribe();
-
         while (fedamb.running) {
             advanceTime(timeStep);
 
@@ -126,6 +102,11 @@ public class QueueFederate extends AFederate<QueueAmbassador> {
         rtiamb.resignFederationExecution(ResignAction.NO_ACTION);
 
         log("resigned from Federation");
+    }
+
+    @Override
+    protected QueueAmbassador getNewFedAmbInstance() {
+        return new QueueAmbassador();
     }
 
     private void openQueue(int idCheckout) throws RTIexception {

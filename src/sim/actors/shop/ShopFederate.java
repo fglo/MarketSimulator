@@ -28,31 +28,6 @@ public class ShopFederate extends AFederate<ShopAmbassador> {
     public void runFederate() throws RTIexception {
         super.runFederate();
 
-        fedamb = new ShopAmbassador();
-        rtiamb.joinFederationExecution( "ShopFederate", "MarketFederation", fedamb );
-        log("Joined Federation as ShopFederate");
-
-        rtiamb.registerFederationSynchronizationPoint( READY_TO_RUN, null );
-
-        while( fedamb.isAnnounced == false )
-        {
-            rtiamb.tick();
-        }
-
-        waitForUser();
-
-        rtiamb.synchronizationPointAchieved( READY_TO_RUN );
-        log( "Achieved sync point: " +READY_TO_RUN+ ", waiting for federation..." );
-        while( fedamb.isReadyToRun == false )
-        {
-            rtiamb.tick();
-        }
-
-        enableTimePolicy();
-
-        publish();
-        subscribe();
-
         while (fedamb.running) {
             advanceTime( timeStep );
 
@@ -112,6 +87,11 @@ public class ShopFederate extends AFederate<ShopAmbassador> {
 //        {
 //            log( "Didn't destroy federation, federates still joined" );
 //        }
+    }
+
+    @Override
+    protected ShopAmbassador getNewFedAmbInstance() {
+        return new ShopAmbassador();
     }
 
     private void openShop() throws RTIexception {

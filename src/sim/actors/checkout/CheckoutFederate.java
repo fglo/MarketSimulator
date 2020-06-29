@@ -32,29 +32,6 @@ public class CheckoutFederate extends AFederate<CheckoutAmbassador> {
     public void runFederate() throws RTIexception {
         super.runFederate();
 
-        fedamb = new CheckoutAmbassador();
-        rtiamb.joinFederationExecution("CheckoutFederate", "MarketFederation", fedamb);
-        log("Joined Federation as CheckoutFederate");
-
-        rtiamb.registerFederationSynchronizationPoint(READY_TO_RUN, null);
-
-        while (fedamb.isAnnounced == false) {
-            rtiamb.tick();
-        }
-
-        waitForUser();
-
-        rtiamb.synchronizationPointAchieved(READY_TO_RUN);
-        log("Achieved sync point: " + READY_TO_RUN + ", waiting for federation...");
-        while (fedamb.isReadyToRun == false) {
-            rtiamb.tick();
-        }
-
-        enableTimePolicy();
-
-        publish();
-        subscribe();
-
         while (fedamb.running) {
             advanceTime(timeStep);
 
@@ -113,6 +90,11 @@ public class CheckoutFederate extends AFederate<CheckoutAmbassador> {
 
         rtiamb.resignFederationExecution(ResignAction.NO_ACTION);
         log("resigned from Federation");
+    }
+
+    @Override
+    protected CheckoutAmbassador getNewFedAmbInstance() {
+        return new CheckoutAmbassador();
     }
 
     private void openCheckout() throws RTIexception {

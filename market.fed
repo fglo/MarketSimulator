@@ -60,6 +60,14 @@
         (parameter idClient)
         (parameter idCheckout)
       )
+      (class LetClientIn reliable timestamp TestSpace
+              (parameter idClient)
+      )
+      (class RejectClient reliable timestamp TestSpace
+              (parameter idClient)
+      )
+      (class CloseDoor reliable timestamp TestSpace)
+      (class OpenDoor reliable timestamp TestSpace)
     )
   )
 )

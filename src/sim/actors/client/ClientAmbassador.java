@@ -19,6 +19,10 @@ public class ClientAmbassador extends AAmbassador {
     protected int shopCloseHandle = 0;
     protected int endCheckoutHandle = 0;
     protected int finishHandle = 0;
+    protected int letClientInHandle = 0;
+    protected int rejectClientHandle = 0;
+    protected int openDoorHandle = 0;
+    protected int closeDoorHandle = 0;
 
     protected int queueHandle = 0;
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
@@ -31,12 +35,6 @@ public class ClientAmbassador extends AAmbassador {
         StringBuilder builder = new StringBuilder("interaction Received: ");
 
         double time = convertTime(theTime);
-
-//        if (interactionClass == HandlersHelper
-//                .getInteractionHandleByName("InteractionRoot.Finish")) {
-//            builder.append("Odebrano interakcję kończącą.");
-//            running = false;
-//        } else
 
         if (interactionClass == shopOpenHandle) {
             ExternalEvent event = new ExternalEvent(EventType.SHOP_OPEN, time);
@@ -65,6 +63,41 @@ public class ClientAmbassador extends AAmbassador {
             externalEvents.add(event);
 
             builder.append("Finish");
+        } else if (interactionClass == letClientInHandle) {
+            try {
+                int idClient = EncodingHelpers.decodeInt(theInteraction.getValue(0));
+                ExternalEvent event = new ExternalEvent(EventType.LET_CLIENT_IN, time);
+                event.addParameter("id_client", idClient);
+                externalEvents.add(event);
+
+                builder.append("LetClientIn");
+                builder.append(", id_client=").append(idClient);
+            } catch (ArrayIndexOutOfBounds ignored) {
+
+            }
+        } else if (interactionClass == rejectClientHandle) {
+            try {
+                int idClient = EncodingHelpers.decodeInt(theInteraction.getValue(0));
+                ExternalEvent event = new ExternalEvent(EventType.REJECT_CLIENT, time);
+                event.addParameter("id_client", idClient);
+                externalEvents.add(event);
+
+                builder.append("RejectClient");
+                builder.append(", id_client=").append(idClient);
+            } catch (ArrayIndexOutOfBounds ignored) {
+
+            }
+        } else if (interactionClass == openDoorHandle) {
+            ExternalEvent event = new ExternalEvent(EventType.OPEN_DOOR, time);
+            externalEvents.add(event);
+
+            builder.append("OpenDoor");
+        }
+        else if (interactionClass == closeDoorHandle) {
+            ExternalEvent event = new ExternalEvent(EventType.CLOSE_DOOR, time);
+            externalEvents.add(event);
+
+            builder.append("CloseDoor");
         }
 
         log(builder.toString(), time);

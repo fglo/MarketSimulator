@@ -1,21 +1,14 @@
 package sim.utils;
 
 import hla.rti.*;
-import hla.rti.jlc.EncodingHelpers;
 import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
-import sim.objects.Checkout;
-import sim.objects.Client;
-import sim.objects.Queue;
-import sim.utils.AAmbassador;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 
 public abstract class AFederate<TFedAmb extends AAmbassador> {
@@ -55,6 +48,29 @@ public abstract class AFederate<TFedAmb extends AAmbassador> {
             urle.printStackTrace();
             return;
         }
+
+        this.fedamb = getNewFedAmbInstance();
+        rtiamb.joinFederationExecution(this.getClass().getSimpleName(), "MarketFederation", fedamb);
+        log("Joined Federation as " + this.getClass().getSimpleName());
+
+        rtiamb.registerFederationSynchronizationPoint(READY_TO_RUN, null);
+
+        while (fedamb.isAnnounced == false) {
+            rtiamb.tick();
+        }
+
+        waitForUser();
+
+        rtiamb.synchronizationPointAchieved(READY_TO_RUN);
+        log("Achieved sync point: " + READY_TO_RUN + ", waiting for federation...");
+        while (fedamb.isReadyToRun == false) {
+            rtiamb.tick();
+        }
+
+        enableTimePolicy();
+
+        publish();
+        subscribe();
     }
 
     protected void enableTimePolicy() throws RTIexception {
@@ -73,6 +89,8 @@ public abstract class AFederate<TFedAmb extends AAmbassador> {
             rtiamb.tick();
         }
     }
+
+    protected abstract TFedAmb getNewFedAmbInstance();
 
     protected abstract void publish() throws RTIexception;
 
