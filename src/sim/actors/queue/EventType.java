@@ -6,5 +6,7 @@ enum EventType implements IEventType {
     SHOP_CLOSE,
     OPEN_QUEUE,
     JOIN_QUEUE,
-    NO_CLIENTS
+    NO_CLIENTS,
+    FINISH_CHECKOUT,
+    FINISH
 }

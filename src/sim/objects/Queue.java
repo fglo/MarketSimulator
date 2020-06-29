@@ -7,6 +7,8 @@ public class Queue {
     public int idCheckout;
     public int length;
 
+    public boolean isCheckoutBusy = false;
+
     public boolean openedNewCheckout = false;
 
     public ArrayList<Integer> clientsInQueue = new ArrayList<>();

@@ -9,43 +9,28 @@ import org.portico.impl.hla13.types.DoubleTimeInterval;
 import sim.objects.Checkout;
 import sim.objects.Client;
 import sim.objects.Queue;
+import sim.utils.AFederate;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-public class QueueFederate {
+public class QueueFederate extends AFederate<QueueAmbassador> {
 
-    public static final String READY_TO_RUN = "ReadyToRun";
-
-    private RTIambassador rtiamb;
-    private QueueAmbassador fedamb;
-    private final double timeStep = 10.0;
     private HashMap<Integer, Queue> queues = new HashMap<>();
-    int timeStepCounter = 0;
 
     private boolean shopOpen = false;
     private boolean noClients = false;
+    private boolean finish = false;
 
+    @Override
     public void runFederate() throws RTIexception {
-        rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
-
-        try {
-            File fom = new File("market.fed");
-            rtiamb.createFederationExecution("MarketFederation",
-                    fom.toURI().toURL());
-            log("Created Federation");
-        } catch (FederationExecutionAlreadyExists exists) {
-            log("Didn't create federation, it already existed");
-        } catch (MalformedURLException urle) {
-            log("Exception processing fom: " + urle.getMessage());
-            urle.printStackTrace();
-            return;
-        }
+        super.runFederate();
 
         fedamb = new QueueAmbassador();
         rtiamb.joinFederationExecution("QueueFederate", "MarketFederation", fedamb);
@@ -72,8 +57,7 @@ public class QueueFederate {
         subscribe();
 
         while (fedamb.running) {
-            double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
-            log("time step: " + ++timeStepCounter, timeToAdvance);
+            advanceTime(timeStep);
 
             if (fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -81,122 +65,109 @@ public class QueueFederate {
                     fedamb.federateTime = externalEvent.getTime();
                     switch (externalEvent.getEventType()) {
                         case SHOP_CLOSE:
-                            log("shop is closing", timeToAdvance);
+                            log("shop is closing", fedamb.federateTime);
                             shopOpen = false;
                             break;
                         case OPEN_QUEUE:
-                            this.openQueue(timeToAdvance,
-                                    externalEvent.getParameter("id_checkout"));
+                            this.openQueue(externalEvent.getParameter("id_checkout"));
                             break;
                         case JOIN_QUEUE:
-                            this.joinQueue(timeToAdvance,
+                            this.joinQueue(
                                     externalEvent.getParameter("id_client"),
                                     externalEvent.getParameter("id_queue"));
                             break;
                         case NO_CLIENTS:
                             noClients = true;
                             break;
+                        case FINISH_CHECKOUT:
+                            this.finishCheckout(externalEvent.getParameter("id_checkout"));
+                            break;
+                        case FINISH:
+                            finish = true;
+                            break;
                     }
                 }
                 fedamb.externalEvents.clear();
             }
 
+            if(finish) {
+                break;
+            }
+
             if (!shopOpen && noClients) {
                 for (Map.Entry<Integer, Queue> entry : queues.entrySet()) {
-                    removeHLAObject(timeToAdvance, entry.getValue().idQueue);
+                    removeHLAObject(entry.getValue().idQueue);
                 }
-                sendQueuesEmptyInteraction(timeToAdvance);
-                advanceTime(timeToAdvance);
-                break;
+                queues.clear();
+                sendQueuesEmptyInteraction();
             }
 
             for (Map.Entry<Integer, Queue> entry : queues.entrySet()) {
                 Queue queue = entry.getValue();
-                Checkout checkout = fedamb.checkouts.get(queue.idCheckout);
-                if (checkout != null && checkout.idClient == -1 && queue.length > 0) {
+                if (!queue.isCheckoutBusy && queue.length > 0) {
                     int idClientToGo = queue.clientsInQueue.get(0);
                     for (int idClient : queue.clientsInQueue) {
                         Client client = fedamb.clients.get(idClient);
                         if (client != null && client.priority == 1) {
                             idClientToGo = idClient;
-                            log("found client [" + idClient + "] with priority=true", timeToAdvance);
+                            log("found client [" + idClient + "] with priority=true", fedamb.federateTime);
                             break;
                         }
                     }
-                    sendToCheckout(timeToAdvance, queue, idClientToGo);
-                }
-                if (checkout.idClient != -1) {
-                    log("checkout [" + checkout.idCheckout + "] is busy", timeToAdvance);
+                    sendToCheckout(queue, idClientToGo);
+                } else if (queue.isCheckoutBusy && queue.length > 0) {
+                    log("checkout [" + queue.idCheckout + "] is busy, length of queue [" + queue.idQueue + "]: " + queue.length, fedamb.federateTime);
                 }
             }
-            advanceTime(timeToAdvance);
+
             rtiamb.tick();
         }
 
         rtiamb.resignFederationExecution(ResignAction.NO_ACTION);
 
         log("resigned from Federation");
-
     }
 
-    private void openQueue(double time, int idCheckout) throws RTIexception {
+    private void openQueue(int idCheckout) throws RTIexception {
         int idQueue = registerQueueObject(idCheckout);
         Queue queue = queues.get(idQueue);
-        updateHLAObject(time, queue);
-        log("open queue [" + idQueue + "]", time);
+        updateHLAObject(queue);
+        log("open queue [" + idQueue + "]", fedamb.federateTime);
     }
 
-    private void joinQueue(double time, int idClient, int idQueue) throws RTIexception {
+    private void joinQueue(int idClient, int idQueue) throws RTIexception {
         Queue queue = queues.get(idQueue);
         if (queue == null) {
-            log("queue with [" + idQueue + "] was not found");
+            log("queue with [" + idQueue + "] was not found", fedamb.federateTime);
             return;
         }
         queue.addToQueue(idClient);
-        updateHLAObject(time, queue);
-        log("join queue [" + idQueue + "], queue length: " + queue.length, time);
+        updateHLAObject(queue);
+        log("join queue [" + idQueue + "], queue length: " + queue.length, fedamb.federateTime);
 
         if (!queue.openedNewCheckout && queue.length > 5) {
             queue.openedNewCheckout = true;
-            sendQueueOverloadInteraction(time, idQueue);
-            log("queue [" + idQueue + "] is overloaded, queue length: " + queue.length, time);
+            sendQueueOverloadInteraction(idQueue);
+            log("queue [" + idQueue + "] is overloaded, queue length: " + queue.length, fedamb.federateTime);
         }
     }
 
-    private void sendToCheckout(double time, Queue queue, int idClient) throws RTIexception {
+    private void finishCheckout(int idCheckout) throws RTIexception {
+        for (Map.Entry<Integer, Queue> entry : queues.entrySet()) {
+            Queue queue = entry.getValue();
+            if (queue.idCheckout == idCheckout) {
+                queue.isCheckoutBusy = false;
+            }
+        }
+    }
+
+    private void sendToCheckout(Queue queue, int idClient) throws RTIexception {
         queue.removeFromQueue(idClient);
-        sendSendToCheckoutInteraction(time, idClient, queue.idCheckout);
-        updateHLAObject(time, queue);
-        log("queue [" + queue.idQueue + "] sent client [" + idClient + "] to checkout [" + queue.idCheckout + "]", time);
+        sendSendToCheckoutInteraction(idClient, queue.idCheckout);
+        updateHLAObject(queue);
+        log("queue [" + queue.idQueue + "] sent client [" + idClient + "] to checkout [" + queue.idCheckout + "]", fedamb.federateTime);
+        queue.isCheckoutBusy = true;
         queue.openedNewCheckout = false;
-    }
-
-    private void waitForUser() {
-        log(" >>>>>>>>>> Press Enter to Continue <<<<<<<<<<");
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        try {
-            reader.readLine();
-        } catch (Exception e) {
-            log("Error while waiting for user input: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    private void enableTimePolicy() throws RTIexception {
-        LogicalTime currentTime = convertTime(fedamb.federateTime);
-        LogicalTimeInterval lookahead = convertInterval(fedamb.federateLookahead);
-
-        this.rtiamb.enableTimeRegulation(currentTime, lookahead);
-
-        while (fedamb.isRegulating == false) {
-            rtiamb.tick();
-        }
-
-        this.rtiamb.enableTimeConstrained();
-
-        while (fedamb.isConstrained == false) {
-            rtiamb.tick();
-        }
     }
 
     private int registerQueueObject(int idCheckout) throws RTIexception {
@@ -206,7 +177,7 @@ public class QueueFederate {
         return idQueue;
     }
 
-    private void updateHLAObject(double time, Queue queue) throws RTIexception {
+    private void updateHLAObject(Queue queue) throws RTIexception {
         SuppliedAttributes attributes =
                 RtiFactoryFactory.getRtiFactory().createSuppliedAttributes();
         int classHandle = rtiamb.getObjectClass(queue.idQueue);
@@ -223,18 +194,15 @@ public class QueueFederate {
         byte[] byteLengthHandle = EncodingHelpers.encodeInt(queue.length);
         attributes.add(lengthHandle, byteLengthHandle);
 
-        LogicalTime logicalTime = convertTime(time);
-        rtiamb.updateAttributeValues(queue.idQueue, attributes, "actualize checkout".getBytes(), logicalTime);
+        rtiamb.updateAttributeValues(queue.idQueue, attributes, "actualize checkout".getBytes(), getLogicalTime());
         queues.put(queue.idQueue, queue);
     }
 
-    private void removeHLAObject(double time, int idQueue) throws RTIexception {
-        LogicalTime logicalTime = convertTime(time);
-        rtiamb.deleteObjectInstance(idQueue, "remove client".getBytes(), logicalTime);
-        queues.remove(idQueue);
+    private void removeHLAObject(int idQueue) throws RTIexception {
+        rtiamb.deleteObjectInstance(idQueue, "remove client".getBytes(), getLogicalTime());
     }
 
-    private void sendSendToCheckoutInteraction(double timeStep, int idClient, int idCheckout) throws RTIexception {
+    private void sendSendToCheckoutInteraction(int idClient, int idCheckout) throws RTIexception {
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
         Random random = new Random();
@@ -249,11 +217,10 @@ public class QueueFederate {
         int idCheckoutHandle = rtiamb.getParameterHandle("idCheckout", interactionHandle);
         parameters.add(idCheckoutHandle, byteIdCheckout);
 
-        LogicalTime time = convertTime(timeStep);
-        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
+        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), getLogicalTime());
     }
 
-    private void sendQueueOverloadInteraction(double timeStep, int idQueue) throws RTIexception {
+    private void sendQueueOverloadInteraction(int idQueue) throws RTIexception {
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
         Random random = new Random();
@@ -264,22 +231,20 @@ public class QueueFederate {
         int idQueueHandle = rtiamb.getParameterHandle("idQueue", interactionHandle);
         parameters.add(idQueueHandle, byteIdQueue);
 
-        LogicalTime time = convertTime(timeStep);
-        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
+        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), getLogicalTime());
     }
 
-    private void sendQueuesEmptyInteraction(double timeStep) throws RTIexception {
+    private void sendQueuesEmptyInteraction() throws RTIexception {
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
 
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueuesEmpty");
 
-        LogicalTime time = convertTime(timeStep);
-        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), time);
+        rtiamb.sendInteraction(interactionHandle, parameters, "tag".getBytes(), getLogicalTime());
     }
 
-    private void publish() throws RTIexception {
-
+    @Override
+    protected void publish() throws RTIexception {
         int queueHandle = rtiamb.getObjectClassHandle("ObjectRoot.Queue");
         int idQueue = rtiamb.getAttributeHandle("idQueue", queueHandle);
         int idCheckout = rtiamb.getAttributeHandle("idCheckout", queueHandle);
@@ -301,8 +266,8 @@ public class QueueFederate {
         rtiamb.publishInteractionClass(queuesEmpty);
     }
 
-    private void subscribe() throws RTIexception {
-
+    @Override
+    protected void subscribe() throws RTIexception {
         int clientHandle = rtiamb.getObjectClassHandle("ObjectRoot.Client");
         fedamb.clientHandle = clientHandle;
         int idClientHandleClient = rtiamb.getAttributeHandle("idClient", clientHandle);
@@ -340,43 +305,14 @@ public class QueueFederate {
         int noClientsHandle = rtiamb.getInteractionClassHandle("InteractionRoot.NoClients");
         fedamb.noClientsHandle = noClientsHandle;
         rtiamb.subscribeInteractionClass(noClientsHandle);
-    }
 
-    private void advanceTime(double timestep) throws RTIexception {
-        log("requesting time advance for: " + timestep);
-        // request the advance
-        fedamb.isAdvancing = true;
-        LogicalTime newTime = convertTime(fedamb.federateTime + timestep);
-        rtiamb.timeAdvanceRequest(newTime);
-        while (fedamb.isAdvancing) {
-            rtiamb.tick();
-        }
-    }
+        int finishCheckoutServiceHandle = rtiamb.getInteractionClassHandle("InteractionRoot.FinishCheckoutService");
+        fedamb.finishCheckoutServiceHandle = finishCheckoutServiceHandle;
+        rtiamb.subscribeInteractionClass(finishCheckoutServiceHandle);
 
-    private double randomTime() {
-        Random r = new Random();
-        return 1 + (9 * r.nextDouble());
-    }
-
-    private LogicalTime convertTime(double time) {
-        // PORTICO SPECIFIC!!
-        return new DoubleTime(time);
-    }
-
-    /**
-     * Same as for {@link #convertTime(double)}
-     */
-    private LogicalTimeInterval convertInterval(double time) {
-        // PORTICO SPECIFIC!!
-        return new DoubleTimeInterval(time);
-    }
-
-    private void log(String message) {
-        System.out.println("QueueFederate   : " + message);
-    }
-
-    private void log(String message, double time) {
-        System.out.println("QueueFederate  : " + message + ", time: " + time);
+        int finishHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Finish");
+        fedamb.finishHandle = finishHandle;
+        rtiamb.subscribeInteractionClass(finishHandle);
     }
 
     public static void main(String[] args) {

@@ -21,6 +21,7 @@ public class CheckoutAmbassador extends AAmbassador {
     protected int shopCloseHandle = 0;
     protected int sendToCheckoutHandle = 0;
     protected int noClientsHandle = 0;
+    protected int finishHandle = 0;
 
     protected int clientHandle = 0;
     protected ArrayList<Integer> clientInstancesHandles = new ArrayList();
@@ -65,6 +66,11 @@ public class CheckoutAmbassador extends AAmbassador {
             externalEvents.add(event);
 
             builder.append("NoClients");
+        } else if (interactionClass == finishHandle) {
+            ExternalEvent event = new ExternalEvent(EventType.FINISH, time);
+            externalEvents.add(event);
+
+            builder.append("Finish");
         }
         log(builder.toString(), time);
     }

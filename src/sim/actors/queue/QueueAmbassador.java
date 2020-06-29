@@ -21,6 +21,8 @@ public class QueueAmbassador extends AAmbassador {
     protected int openQueueHandle        = 0;
     protected int joinQueueHandle        = 0;
     protected int noClientsHandle        = 0;
+    protected int finishCheckoutServiceHandle        = 0;
+    protected int finishHandle        = 0;
 
     protected int clientHandle           = 0;
     protected ArrayList<Integer> clientInstancesHandles = new ArrayList();
@@ -77,6 +79,26 @@ public class QueueAmbassador extends AAmbassador {
             externalEvents.add(event);
 
             builder.append("NoClients");
+        } else if (interactionClass == finishCheckoutServiceHandle) {
+            try {
+                int idClient = EncodingHelpers.decodeInt(theInteraction.getValue(0));
+                int idCheckout= EncodingHelpers.decodeInt(theInteraction.getValue(1));
+                ExternalEvent event = new ExternalEvent(EventType.FINISH_CHECKOUT, time);
+                event.addParameter("id_client", idClient);
+                event.addParameter("id_checkout", idCheckout);
+                externalEvents.add(event);
+
+                builder.append("FinishCheckout");
+                builder.append(", id_client=").append(idClient);
+                builder.append(", id_checkout=").append(idCheckout);
+            } catch (ArrayIndexOutOfBounds ignored) {
+
+            }
+        } else if (interactionClass == finishHandle) {
+            ExternalEvent event = new ExternalEvent(EventType.FINISH, time);
+            externalEvents.add(event);
+
+            builder.append("Finish");
         }
 
         log(builder.toString(), time);
@@ -90,7 +112,8 @@ public class QueueAmbassador extends AAmbassador {
         double time = convertTime(theTime);
 
         if(clientInstancesHandles.contains(theObject)) {
-            builder.append("handle=" + theObject);
+            builder.append("client");
+            builder.append(", handle=" + theObject);
             builder.append(", attributeCount=" + theAttributes.size());
 
             try {
@@ -107,14 +130,16 @@ public class QueueAmbassador extends AAmbassador {
                     client.priority = priority;
                 }
                 clients.put(idClient, client);
+                builder.append(", idClient=" + client.idClient);
+                builder.append(", priority=" + client.priority);
 
             } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
                 //arrayIndexOutOfBounds.printStackTrace();
             }
         } else if(checkoutInstancesHandles.contains(theObject)) {
-            builder.append("handle=" + theObject);
+            builder.append("checkout");
+            builder.append(", handle=" + theObject);
             builder.append(", attributeCount=" + theAttributes.size());
-
             try {
                 int idCheckout = EncodingHelpers.decodeInt(theAttributes.getValue(0));
                 Checkout checkout = checkouts.get(idCheckout);
@@ -123,6 +148,8 @@ public class QueueAmbassador extends AAmbassador {
                 }
                 checkout.idClient = EncodingHelpers.decodeInt(theAttributes.getValue(1));
                 checkouts.put(idCheckout, checkout);
+                builder.append(", idCheckout=" + checkout.idCheckout);
+                builder.append(", idClient=" + checkout.idClient);
             } catch (ArrayIndexOutOfBounds arrayIndexOutOfBounds) {
                 //arrayIndexOutOfBounds.printStackTrace();
             }

@@ -4,6 +4,7 @@ import hla.rti.*;
 import hla.rti.jlc.RtiFactoryFactory;
 import org.portico.impl.hla13.types.DoubleTime;
 import org.portico.impl.hla13.types.DoubleTimeInterval;
+import sim.utils.AFederate;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,41 +16,17 @@ import java.util.Random;
 /**
  * Created by Michal on 2016-04-27.
  */
-public class ShopFederate {
+public class ShopFederate extends AFederate<ShopAmbassador> {
 
-    public static final String READY_TO_RUN = "ReadyToRun";
-
-    private RTIambassador rtiamb;
-    private ShopAmbassador fedamb;
-    private final double timeStep           = 10.0;
-    private HashMap<Integer, Integer> shopHlaHandles;
     private int checkoutCounter = 0;
-    int timeStepCounter = 0;
 
     private boolean shopOpen = false;
     private boolean queuesEmpty = false;
     private boolean checkoutsClosed = false;
 
+    @Override
     public void runFederate() throws RTIexception {
-        rtiamb = RtiFactoryFactory.getRtiFactory().createRtiAmbassador();
-
-        try
-        {
-            File fom = new File( "market.fed" );
-            rtiamb.createFederationExecution( "MarketFederation",
-                    fom.toURI().toURL() );
-            log( "Created Federation" );
-        }
-        catch( FederationExecutionAlreadyExists exists )
-        {
-            log( "Didn't create federation, it already existed" );
-        }
-        catch( MalformedURLException urle )
-        {
-            log( "Exception processing fom: " + urle.getMessage() );
-            urle.printStackTrace();
-            return;
-        }
+        super.runFederate();
 
         fedamb = new ShopAmbassador();
         rtiamb.joinFederationExecution( "ShopFederate", "MarketFederation", fedamb );
@@ -73,11 +50,11 @@ public class ShopFederate {
 
         enableTimePolicy();
 
-        publishAndSubscribe();
+        publish();
+        subscribe();
 
         while (fedamb.running) {
-            double timeToAdvance = fedamb.federateTime + fedamb.federateLookahead; //fedamb.federateTime + timeStep;
-            log("time step: " + ++timeStepCounter, timeToAdvance);
+            advanceTime( timeStep );
 
             if(fedamb.externalEvents.size() > 0) {
                 fedamb.externalEvents.sort(new ExternalEvent.ExternalEventComparator());
@@ -85,7 +62,7 @@ public class ShopFederate {
                     fedamb.federateTime = externalEvent.getTime();
                     switch (externalEvent.getEventType()) {
                         case QUEUE_OVERLOAD:
-                            this.queueOverload(timeToAdvance);
+                            this.queueOverload();
                             break;
                         case CHECKOUTS_CLOSED:
                             checkoutsClosed = true;
@@ -98,148 +75,122 @@ public class ShopFederate {
                 fedamb.externalEvents.clear();
             }
 
-            if(!shopOpen && timeToAdvance < 1024)
+            if(!shopOpen && fedamb.federateTime < 2048)
             {
-                openShop(timeToAdvance);
+                openShop();
                 for (int i = 0; i < 3; i++) {
-                    openCheckout(timeToAdvance);
+                    openCheckout();
                 }
             }
 
-            if(shopOpen && timeToAdvance >= 1024)
+            if(shopOpen && fedamb.federateTime >= 2048)
             {
-                closeShop(timeToAdvance);
+                closeShop();
             }
 
             if(checkoutsClosed && queuesEmpty) {
-                closeShop(timeToAdvance);
-                advanceTime(timeToAdvance);
+                sendFinishInteraction();
                 break;
             }
 
-            advanceTime( timeToAdvance );
             rtiamb.tick();
         }
 
         rtiamb.resignFederationExecution( ResignAction.NO_ACTION );
         log( "Resigned from Federation" );
 
-        try
-        {
-            rtiamb.destroyFederationExecution( "MarketFederation" );
-            log( "Destroyed Federation" );
-        }
-        catch( FederationExecutionDoesNotExist dne )
-        {
-            log( "No need to destroy federation, it doesn't exist" );
-        }
-        catch( FederatesCurrentlyJoined fcj )
-        {
-            log( "Didn't destroy federation, federates still joined" );
-        }
+//        try
+//        {
+//            rtiamb.destroyFederationExecution( "MarketFederation" );
+//            log( "Destroyed Federation" );
+//        }
+//        catch( FederationExecutionDoesNotExist dne )
+//        {
+//            log( "No need to destroy federation, it doesn't exist" );
+//        }
+//        catch( FederatesCurrentlyJoined fcj )
+//        {
+//            log( "Didn't destroy federation, federates still joined" );
+//        }
     }
 
-    private void openShop(double time) throws RTIexception {
+    private void openShop() throws RTIexception {
         shopOpen = true;
-        sendOpenShopInteraction(time);
-        log("opening the shop");
+        sendOpenShopInteraction();
+        log("opening the shop", fedamb.federateTime);
     }
 
-    private void closeShop(double time) throws RTIexception {
+    private void closeShop() throws RTIexception {
         shopOpen = false;
-        sendCloseShopInteraction(time);
-        log("closing the shop");
+        sendCloseShopInteraction();
+        log("closing the shop", fedamb.federateTime);
     }
 
-    private void openCheckout(double time) throws RTIexception {
+    private void openCheckout() throws RTIexception {
         checkoutCounter++;
-        sendOpenCheckoutInteraction(time);
-        log("checkout opens, number of checkouts: " + checkoutCounter, time);
+        sendOpenCheckoutInteraction();
+        log("checkout opens, number of checkouts: " + checkoutCounter, fedamb.federateTime);
     }
 
-    private void queueOverload(double time) throws RTIexception {
-        openCheckout(time);
+    private void queueOverload() throws RTIexception {
+        openCheckout();
     }
 
-    private void waitForUser()
-    {
-        log( " >>>>>>>>>> Press Enter to Continue <<<<<<<<<<" );
-        BufferedReader reader = new BufferedReader( new InputStreamReader(System.in) );
-        try
-        {
-            reader.readLine();
-        }
-        catch( Exception e )
-        {
-            log( "Error while waiting for user input: " + e.getMessage() );
-            e.printStackTrace();
-        }
-    }
-
-    private void enableTimePolicy() throws RTIexception
-    {
-        LogicalTime currentTime = convertTime( fedamb.federateTime );
-        LogicalTimeInterval lookahead = convertInterval( fedamb.federateLookahead );
-
-        this.rtiamb.enableTimeRegulation( currentTime, lookahead );
-
-        while( fedamb.isRegulating == false )
-        {
-            rtiamb.tick();
-        }
-
-        this.rtiamb.enableTimeConstrained();
-
-        while( fedamb.isConstrained == false )
-        {
-            rtiamb.tick();
-        }
-    }
-
-    private void sendOpenShopInteraction(double timeStep) throws RTIexception {
-        LogicalTime time = convertTime( timeStep );
-        log("shop opens", timeStep);
+    private void sendOpenShopInteraction() throws RTIexception {
+        log("shop opens", fedamb.federateTime);
 
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
 
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopOpen");
-        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), getLogicalTime());
     }
 
-    private void sendCloseShopInteraction(double timeStep) throws RTIexception {
-        LogicalTime time = convertTime( timeStep );
-        log("shop closes", timeStep);
+    private void sendCloseShopInteraction() throws RTIexception {
+        log("shop closes", fedamb.federateTime);
 
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
 
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
-        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), getLogicalTime());
     }
 
-    private void sendOpenCheckoutInteraction(double timeStep) throws RTIexception {
-        LogicalTime time = convertTime( timeStep );
-
+    private void sendOpenCheckoutInteraction() throws RTIexception {
         SuppliedParameters parameters =
                 RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
 
         int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutOpen");
-        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), time );
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), getLogicalTime());
     }
 
-    private void publishAndSubscribe() throws RTIexception {
-        ////    PUBLISH
-        int ShopOpen = rtiamb.getInteractionClassHandle("InteractionRoot.ShopOpen");
-        rtiamb.publishInteractionClass(ShopOpen);
+    private void sendFinishInteraction() throws RTIexception {
+        log("finish", fedamb.federateTime);
 
-        int ShopClose = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
-        rtiamb.publishInteractionClass(ShopClose);
+        SuppliedParameters parameters =
+                RtiFactoryFactory.getRtiFactory().createSuppliedParameters();
 
-        int CheckoutOpen = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutOpen");
-        rtiamb.publishInteractionClass(CheckoutOpen);
+        int interactionHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Finish");
+        rtiamb.sendInteraction( interactionHandle, parameters, "tag".getBytes(), getLogicalTime());
+    }
 
-        ////    SUBSCRIBE
+    @Override
+    protected void publish() throws RTIexception {
+        int shopOpenHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopOpen");
+        rtiamb.publishInteractionClass(shopOpenHandle);
+
+        int shopCloseHandle = rtiamb.getInteractionClassHandle("InteractionRoot.ShopClose");
+        rtiamb.publishInteractionClass(shopCloseHandle);
+
+        int checkoutOpenHandle = rtiamb.getInteractionClassHandle("InteractionRoot.CheckoutOpen");
+        rtiamb.publishInteractionClass(checkoutOpenHandle);
+
+        int finishHandle = rtiamb.getInteractionClassHandle("InteractionRoot.Finish");
+        rtiamb.publishInteractionClass(finishHandle);
+    }
+
+    @Override
+    protected void subscribe() throws RTIexception {
         int queueOverloadHandle = rtiamb.getInteractionClassHandle("InteractionRoot.QueueOverload");
         fedamb.queueOverloadHandle = queueOverloadHandle;
         rtiamb.subscribeInteractionClass(queueOverloadHandle);
@@ -253,46 +204,6 @@ public class ShopFederate {
         rtiamb.subscribeInteractionClass(queuesEmptyHandle);
     }
 
-    private void advanceTime( double timestep ) throws RTIexception {
-        log("requesting time advance for: " + timestep);
-        // request the advance
-        fedamb.isAdvancing = true;
-        LogicalTime newTime = convertTime( fedamb.federateTime + timestep );
-        rtiamb.timeAdvanceRequest( newTime );
-        while( fedamb.isAdvancing )
-        {
-            rtiamb.tick();
-        }
-    }
-
-    private double randomTime() {
-        Random r = new Random();
-        return 1 +(4 * r.nextDouble());
-    }
-
-    private LogicalTime convertTime( double time )
-    {
-        // PORTICO SPECIFIC!!
-        return new DoubleTime( time );
-    }
-
-    /**
-     * Same as for {@link #convertTime(double)}
-     */
-    private LogicalTimeInterval convertInterval( double time )
-    {
-        // PORTICO SPECIFIC!!
-        return new DoubleTimeInterval( time );
-    }
-
-    private void log(String message) {
-        System.out.println("ShopFederate  : " + message );
-    }
-
-    private void log(String message, double time) {
-        System.out.println("ShopFederate  : " + message + ", time: " + time);
-    }
-
     public static void main(String[] args) {
         try {
             new ShopFederate().runFederate();
@@ -300,6 +211,4 @@ public class ShopFederate {
             rtIexception.printStackTrace();
         }
     }
-
-
 }

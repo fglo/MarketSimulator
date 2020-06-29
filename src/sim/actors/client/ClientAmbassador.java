@@ -18,6 +18,7 @@ public class ClientAmbassador extends AAmbassador {
     protected int shopOpenHandle = 0;
     protected int shopCloseHandle = 0;
     protected int endCheckoutHandle = 0;
+    protected int finishHandle = 0;
 
     protected int queueHandle = 0;
     protected ArrayList<ExternalEvent> externalEvents = new ArrayList<>();
@@ -59,6 +60,11 @@ public class ClientAmbassador extends AAmbassador {
             } catch (ArrayIndexOutOfBounds ignored) {
 
             }
+        } else if (interactionClass == finishHandle) {
+            ExternalEvent event = new ExternalEvent(EventType.FINISH, time);
+            externalEvents.add(event);
+
+            builder.append("Finish");
         }
 
         log(builder.toString(), time);

@@ -58,6 +58,7 @@
       )
       (class FinishCheckoutService reliable timestamp TestSpace
         (parameter idClient)
+        (parameter idCheckout)
       )
     )
   )
