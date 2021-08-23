@@ -1,6 +1,6 @@
 # MskProject
 
-## Zadanie projektowe z przedmiotu „Metody i techniki symulacji komputerowej
+Projekt został stworzony na potrzeby przemiotu **Metody i techniki symulacji komputerowej**
 
 ### Treść zadania
 W sklepie z kasami losowo przybywający klienci dokonują przez losowy czas zakupów. Po tym wybierają kolejkę i czekają na obsługę. Płacą gotówką. Losowi klienci są uprzywilejowani i podchodzą bez kolejki. Oszacować liczbę kas taką, aby kolejka nie przekroczyła założonej długości.
