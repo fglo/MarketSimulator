@@ -1,4 +1,4 @@
-# MskProject
+# Market Simulator
 
 Projekt został stworzony na potrzeby przemiotu **Metody i techniki symulacji komputerowej**
 
